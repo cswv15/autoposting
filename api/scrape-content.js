@@ -118,7 +118,7 @@ module.exports = async function handler(req, res) {
       .replace(/\s+/g, ' ')
       .replace(/\n+/g, '\n')
       .trim()
-      .substring(0, 3000); // 최대 3000자로 제한
+      .substring(0, 2000); // 최대 2000자로 제한
 
     console.log(`[AutoPosting] 원본: ${fullLength}자 → 잘림 후: ${content.length}자`);
 
