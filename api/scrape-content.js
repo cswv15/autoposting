@@ -25,6 +25,13 @@ module.exports = async function handler(req, res) {
     let content = '';
     let method = 'basic';
 
+    // 네이버 블로그를 모바일 버전으로 변환
+    let scrapingUrl = url;
+    if (url.includes('blog.naver.com') && !url.includes('m.blog.naver.com')) {
+      scrapingUrl = url.replace('blog.naver.com', 'm.blog.naver.com');
+      console.log(`[AutoPosting] 모바일 버전 사용: ${scrapingUrl}`);
+    }
+
     // 방법 1: Browserless.io 사용 (동적 콘텐츠 처리)
     if (process.env.BROWSERLESS_API_KEY) {
       try {
@@ -34,16 +41,17 @@ module.exports = async function handler(req, res) {
         const browserlessResponse = await axios.post(
           `https://production-sfo.browserless.io/scrape?token=${process.env.BROWSERLESS_API_KEY}`,
           {
-            url: url,
+            url: scrapingUrl,
             elements: [
-              { selector: ".se-main-container" },
-              { selector: "#postViewArea" },
+              { selector: "#postList" },      // 모바일 네이버 블로그
+              { selector: ".post_ct" },       // 모바일 네이버 블로그
+              { selector: ".se-main-container" },  // PC 네이버 블로그
+              { selector: "#postViewArea" },  // PC 네이버 블로그 구버전
               { selector: "body" }
             ],
-            waitForTimeout: 3000,
             gotoOptions: {
-              waitUntil: "domcontentloaded",
-              timeout: 60000
+              waitUntil: "load",
+              timeout: 30000
             }
           },
           {
@@ -51,16 +59,22 @@ module.exports = async function handler(req, res) {
               'Content-Type': 'application/json',
               'Cache-Control': 'no-cache'
             },
-            timeout: 90000
+            timeout: 45000
           }
         );
 
+        console.log('[AutoPosting] Browserless 응답 받음');
+
         // /scrape API는 구조화된 데이터를 반환
         if (browserlessResponse.data && browserlessResponse.data.data) {
+          console.log(`[AutoPosting] data 배열 길이: ${browserlessResponse.data.data.length}`);
+          
           for (const elementGroup of browserlessResponse.data.data) {
             if (elementGroup.results && elementGroup.results.length > 0) {
               const result = elementGroup.results[0];
               content = result.text || result.html || '';
+              console.log(`[AutoPosting] 추출된 content 길이: ${content.length}`);
+              
               if (content && content.length > 100) {
                 break;
               }
@@ -68,8 +82,10 @@ module.exports = async function handler(req, res) {
           }
         }
 
+        console.log(`[AutoPosting] 최종 Browserless content 길이: ${content.length}`);
+
       } catch (browserlessError) {
-        console.log('[AutoPosting] Browserless 실패, 일반 방식으로 재시도:', browserlessError.message);
+        console.log(`[AutoPosting] Browserless 실패, 일반 방식으로 재시도: ${browserlessError.message}`);
         method = 'basic';
       }
     }
@@ -79,15 +95,21 @@ module.exports = async function handler(req, res) {
       method = 'basic';
       console.log('[AutoPosting] 일반 HTTP 요청 사용');
       
-      const response = await axios.get(url, {
+      const response = await axios.get(scrapingUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
         },
         timeout: 15000
       });
 
       const $ = cheerio.load(response.data);
-      content = $('.se-main-container').text() || $('#postViewArea').text() || '';
+      
+      // 모바일 버전 selector 우선
+      content = $('#postList').text() || 
+                $('.post_ct').text() || 
+                $('.se-main-container').text() || 
+                $('#postViewArea').text() || 
+                '';
     }
 
     // 텍스트 정제
