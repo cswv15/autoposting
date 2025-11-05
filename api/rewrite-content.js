@@ -18,21 +18,28 @@ module.exports = async function handler(req, res) {
 
     const { 
       searchKeyword,
-      companyName = '',
-      subKeyword = '',
-      bodyKeyword1 = '',
-      bodyKeyword2 = '',
-      bodyKeyword3 = '',
+      companyName: rawCompanyName,
+      subKeyword: rawSubKeyword,
+      bodyKeyword1: rawBodyKeyword1,
+      bodyKeyword2: rawBodyKeyword2,
+      bodyKeyword3: rawBodyKeyword3,
       contents, 
-      companyInfo: rawCompanyInfo = '',
-      customPrompt = ''
+      companyInfo: rawCompanyInfo,
+      customPrompt
     } = req.body;
 
     // 고정된 목표 글자수: 공백 포함 3000자
     const targetLength = 3000;
 
+    // "null" 문자열을 빈 문자열로 변환
+    const companyName = (rawCompanyName === 'null' || rawCompanyName === null || !rawCompanyName) ? '' : String(rawCompanyName);
+    const subKeyword = (rawSubKeyword === 'null' || rawSubKeyword === null || !rawSubKeyword) ? '' : String(rawSubKeyword);
+    const bodyKeyword1 = (rawBodyKeyword1 === 'null' || rawBodyKeyword1 === null || !rawBodyKeyword1) ? '' : String(rawBodyKeyword1);
+    const bodyKeyword2 = (rawBodyKeyword2 === 'null' || rawBodyKeyword2 === null || !rawBodyKeyword2) ? '' : String(rawBodyKeyword2);
+    const bodyKeyword3 = (rawBodyKeyword3 === 'null' || rawBodyKeyword3 === null || !rawBodyKeyword3) ? '' : String(rawBodyKeyword3);
+
     // companyInfo에서 줄바꿈 제거
-    const companyInfo = rawCompanyInfo ? rawCompanyInfo.replace(/[\r\n]+/g, ' ').trim() : '';
+    const companyInfo = (rawCompanyInfo && rawCompanyInfo !== 'null') ? rawCompanyInfo.replace(/[\r\n]+/g, ' ').trim() : '';
     
     console.log('[AutoPosting] searchKeyword:', searchKeyword);
     console.log('[AutoPosting] companyName:', companyName);
@@ -52,10 +59,15 @@ module.exports = async function handler(req, res) {
     let contentsArray = Array.isArray(contents) ? contents : [contents];
     console.log(`[AutoPosting] contents 초기 개수: ${contentsArray.length}`);
 
-    // Make.com Array Aggregator 구조 처리
-    if (contentsArray.length > 0 && contentsArray[0].Data) {
-      console.log('[AutoPosting] Array Aggregator 형식 감지, Data 추출');
-      contentsArray = contentsArray.map(item => item.Data);
+    // Make.com Array Aggregator 구조 처리: [{Data: {...}}, {Data: {...}}] 또는 [{data: {...}}, {data: {...}}]
+    if (contentsArray.length > 0) {
+      if (contentsArray[0].Data) {
+        console.log('[AutoPosting] Array Aggregator 형식 감지 (대문자 Data)');
+        contentsArray = contentsArray.map(item => item.Data);
+      } else if (contentsArray[0].data) {
+        console.log('[AutoPosting] Array Aggregator 형식 감지 (소문자 data)');
+        contentsArray = contentsArray.map(item => item.data);
+      }
     }
 
     console.log(`[AutoPosting] 최종 contents 개수: ${contentsArray.length}`);
@@ -323,6 +335,7 @@ ${combinedContent}
 
   } catch (error) {
     console.error('[AutoPosting] 재작성 오류:', error.message);
+    console.error('[AutoPosting] Stack:', error.stack);
 
     return res.status(500).json({
       success: false,
