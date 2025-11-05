@@ -1,0 +1,10 @@
+{
+  "name": "autoposting",
+  "version": 2,
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 60
+    }
+  },
+  "regions": ["icn1"]
+}
