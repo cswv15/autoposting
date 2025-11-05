@@ -70,4 +70,106 @@ module.exports = async function handler(req, res) {
 - 목표: ${targetLength}자 (공백 제외)
 - 최소: ${targetLength}자 (절대 이보다 짧으면 안됨!)
 - 최대: ${Math.floor(targetLength * 1.2)}자 (이를 초과하면 안됨!)
-- 공백은
+- 공백은 글자수에 포함하지 않습니다
+${titleKeywordInstruction}
+
+구조:
+- 제목: 흥미롭고 클릭을 유도하는 제목 (위의 키워드 포함)
+- 도입부: 독자의 관심을 끄는 질문이나 공감 (2-3문장)
+- 본문: 핵심 내용을 소제목과 함께 전개
+  ${companyInfo ? '* 업체 정보는 본문 중간이나 후반부에 자연스럽게 녹여내기' : ''}
+  * 글자수를 맞추기 위해 내용을 충분히 풍부하게 작성
+- 마무리: 실천 방법이나 요약 (2-3문장)${companyInfo ? ', 필요시 방문/문의 유도' : ''}
+
+톤 앤 매너: 친근하고 실용적이며, 독자에게 도움이 되는 조언 제공
+${companyInfo ? '\n업체 정보 처리: 광고처럼 노골적이지 않게, 정보 제공 맥락에서 자연스럽게 언급' : ''}`;
+
+    // 사용자 프롬프트
+    const userPrompt = `검색 키워드: "${searchKeyword}"
+${titleKeywords.length > 0 ? `제목에 포함할 키워드: ${titleKeywords.map(k => `"${k}"`).join(', ')}` : ''}
+${companyInfo ? `\n업체/브랜드 특성:\n${companyInfo}\n` : ''}
+다음 블로그 글들을 참고하여 "${searchKeyword}"에 대한 완전히 새로운 블로그 글을 작성해주세요:
+
+${contentsText}
+
+중요 지침:
+1. 반드시 제목부터 작성하세요 (위의 키워드 포함)
+2. 공백 제외 ${targetLength}자 이상, ${Math.floor(targetLength * 1.2)}자 이하로 작성하세요
+3. 글자수가 부족하면 더 자세한 설명과 예시를 추가하세요
+4. 독자에게 실질적으로 도움이 되는 내용으로 작성하세요
+${companyInfo ? '5. 업체 특성은 자연스럽게 녹여내세요' : ''}`;
+
+    // ChatGPT API 호출
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: userPrompt
+        }
+      ],
+      temperature: 0.8,
+      max_tokens: 3500, // 글자수 늘어날 수 있으니 여유있게
+      presence_penalty: 0.6,
+      frequency_penalty: 0.6
+    });
+
+    const rewrittenContent = completion.choices[0].message.content;
+    
+    // 공백 제외 글자수 계산
+    const contentWithoutSpaces = rewrittenContent.replace(/\s/g, '');
+    const actualLength = contentWithoutSpaces.length;
+    
+    // 글자수 검증
+    const isLengthValid = actualLength >= targetLength && actualLength <= Math.floor(targetLength * 1.2);
+
+    console.log(`[AutoPosting] 재작성 완료`);
+    console.log(`- 총 글자수: ${rewrittenContent.length}자`);
+    console.log(`- 공백 제외: ${actualLength}자`);
+    console.log(`- 목표 범위: ${targetLength}~${Math.floor(targetLength * 1.2)}자`);
+    console.log(`- 범위 충족: ${isLengthValid ? 'O' : 'X'}`);
+    console.log(`- 토큰 사용: ${completion.usage.total_tokens}`);
+
+    return res.status(200).json({
+      success: true,
+      searchKeyword: searchKeyword,
+      titleKeywords: titleKeywords,
+      targetLength: targetLength,
+      companyInfo: companyInfo || null,
+      originalCount: contents.length,
+      rewrittenContent: rewrittenContent,
+      wordCount: rewrittenContent.length,
+      wordCountNoSpaces: actualLength,
+      isLengthValid: isLengthValid,
+      lengthRange: {
+        min: targetLength,
+        max: Math.floor(targetLength * 1.2),
+        actual: actualLength
+      },
+      tokensUsed: completion.usage.total_tokens,
+      model: completion.model,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('[AutoPosting] 재작성 오류:', error.message);
+    
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        error: 'OpenAI API 오류',
+        details: error.response.data,
+        hint: 'API Key를 확인해주세요'
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
