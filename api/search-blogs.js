@@ -1,8 +1,5 @@
 const axios = require('axios');
 
-const NAVER_CLIENT_ID = process.env.NAVER_CLIENT_ID;
-const NAVER_CLIENT_SECRET = process.env.NAVER_CLIENT_SECRET;
-
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -13,55 +10,38 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // GET/POST 둘 다 지원
-    const keyword = req.method === 'GET' ? req.query.keyword : req.body?.keyword;
-    const count = req.method === 'GET' ? (parseInt(req.query.count) || 3) : (req.body?.count || 3);
+    const { keyword } = req.query;
 
     if (!keyword) {
-      return res.status(400).json({
+      return res.status(400).json({ 
         success: false,
-        error: '검색 키워드를 입력해주세요'
+        error: '키워드를 입력해주세요' 
       });
     }
 
-    console.log(`[AutoPosting] 블로그 검색: ${keyword}, 개수: ${count}`);
+    console.log(`[AutoPosting] 키워드 검색 시작: ${keyword}`);
 
-    // 네이버 블로그 검색 API 호출
     const response = await axios.get('https://openapi.naver.com/v1/search/blog.json', {
       params: {
         query: keyword,
-        display: count,
+        display: 3,
         sort: 'sim'
       },
       headers: {
-        'X-Naver-Client-Id': NAVER_CLIENT_ID,
-        'X-Naver-Client-Secret': NAVER_CLIENT_SECRET
-      }
+        'X-Naver-Client-Id': process.env.NAVER_CLIENT_ID,
+        'X-Naver-Client-Secret': process.env.NAVER_CLIENT_SECRET
+      },
+      timeout: 10000
     });
 
-    if (!response.data.items || response.data.items.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: '검색 결과가 없습니다'
-      });
-    }
-
-    // 모바일 URL을 PC URL로 변환
-    const blogs = response.data.items.map(item => {
-      let url = item.link;
-      
-      if (url.includes('m.blog.naver.com')) {
-        url = url.replace('m.blog.naver.com', 'blog.naver.com');
-      }
-      
-      return {
-        title: item.title.replace(/<[^>]*>/g, ''),
-        url: url,
-        description: item.description.replace(/<[^>]*>/g, ''),
-        bloggerName: item.bloggername,
-        postDate: item.postdate
-      };
-    });
+    const blogs = response.data.items.map((item, index) => ({
+      rank: index + 1,
+      title: item.title.replace(/<[^>]*>/g, '').trim(),
+      link: item.link,
+      description: item.description.replace(/<[^>]*>/g, '').trim(),
+      bloggername: item.bloggername,
+      postdate: item.postdate
+    }));
 
     console.log(`[AutoPosting] ${blogs.length}개 블로그 검색 완료`);
 
@@ -69,13 +49,21 @@ module.exports = async function handler(req, res) {
       success: true,
       keyword: keyword,
       totalCount: response.data.total,
-      returnedCount: blogs.length,
       blogs: blogs,
       timestamp: new Date().toISOString()
     });
 
   } catch (error) {
-    console.error('[AutoPosting] 블로그 검색 오류:', error.message);
+    console.error('[AutoPosting] 검색 오류:', error.message);
+    
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        error: '네이버 API 오류',
+        details: error.response.data,
+        hint: 'Client ID와 Secret을 확인해주세요'
+      });
+    }
 
     return res.status(500).json({
       success: false,
