@@ -18,25 +18,18 @@ module.exports = async function handler(req, res) {
 
     const { 
       searchKeyword,
-      subKeyword = '',
-      bodyKeyword1 = '',
-      bodyKeyword2 = '',
-      bodyKeyword3 = '',
-      companyName = '',
+      titleKeyword1 = '',
+      titleKeyword2 = '',
+      titleKeyword3 = '',
       contents, 
+      targetLength = 1500,
       companyInfo: rawCompanyInfo = '',
       customPrompt = ''
     } = req.body;
 
-    // 고정된 목표 글자수: 공백 포함 2500자
-    const targetLength = 2500;
-
     // companyInfo에서 줄바꿈 제거
     const companyInfo = rawCompanyInfo ? rawCompanyInfo.replace(/[\r\n]+/g, ' ').trim() : '';
-    console.log('[AutoPosting] companyName:', companyName);
-    console.log('[AutoPosting] searchKeyword:', searchKeyword);
-    console.log('[AutoPosting] subKeyword:', subKeyword);
-    console.log('[AutoPosting] bodyKeywords:', bodyKeyword1, bodyKeyword2, bodyKeyword3);
+    console.log('[AutoPosting] companyInfo (줄바꿈 제거 후):', companyInfo.substring(0, 100));
 
     // contents 검증
     if (!contents) {
@@ -49,8 +42,9 @@ module.exports = async function handler(req, res) {
     // 배열이 아니면 배열로 변환
     let contentsArray = Array.isArray(contents) ? contents : [contents];
     console.log(`[AutoPosting] contents 초기 개수: ${contentsArray.length}`);
+    console.log(`[AutoPosting] contents 타입: ${typeof contents}, 배열 여부: ${Array.isArray(contents)}`);
 
-    // Make.com Array Aggregator 구조 처리
+    // Make.com Array Aggregator 구조 처리: [{Data: {...}}, {Data: {...}}]
     if (contentsArray.length > 0 && contentsArray[0].Data) {
       console.log('[AutoPosting] Array Aggregator 형식 감지, Data 추출');
       contentsArray = contentsArray.map(item => item.Data);
@@ -65,201 +59,80 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    console.log(`[AutoPosting] 재작성 시작 - 목표 길이: ${targetLength}자 (공백 포함)`);
+    console.log(`[AutoPosting] 재작성 시작 - 키워드: ${searchKeyword}, 목표 길이: ${targetLength}자`);
 
     // 블로그 본문 결합
     const combinedContent = contentsArray
-      .map((item, index) => `[상위노출 성공 블로그 ${index + 1}]\n${item.content || item.text || ''}`)
+      .map((item, index) => `[블로그 ${index + 1}]\n${item.content || item.text || ''}`)
       .join('\n\n---\n\n');
 
     console.log(`[AutoPosting] 결합된 본문 길이: ${combinedContent.length}자`);
 
-    // 본문 키워드 정리
-    const bodyKeywords = [bodyKeyword1, bodyKeyword2, bodyKeyword3]
+    // ChatGPT 프롬프트
+    const titleKeywords = [titleKeyword1, titleKeyword2, titleKeyword3]
       .filter(k => k && k.trim())
       .join(', ');
 
+    const companyInfoText = companyInfo ? `\n\n업체 특성: ${companyInfo}` : '';
+
     // 커스텀 프롬프트가 있으면 사용, 없으면 기본 프롬프트
     let prompt;
-    let systemMessage;
 
     if (customPrompt && customPrompt.trim()) {
       // 사용자가 입력한 커스텀 프롬프트 사용
       console.log('[AutoPosting] 커스텀 프롬프트 사용');
       
-      systemMessage = `SEO에 최적화된 고품질 블로그 콘텐츠를 작성하는 전문 작가입니다. 반드시 공백 포함 ${targetLength}자 이상의 긴 글을 작성해야 합니다.`;
-      const companyInfoText = companyInfo ? `\n\n업체 특성: ${companyInfo}` : '';
-      
       // 변수 치환
       prompt = customPrompt
         .replace(/\{searchKeyword\}/g, searchKeyword)
-        .replace(/\{subKeyword\}/g, subKeyword)
-        .replace(/\{bodyKeywords\}/g, bodyKeywords)
-        .replace(/\{companyName\}/g, companyName)
+        .replace(/\{titleKeywords\}/g, titleKeywords)
         .replace(/\{targetLength\}/g, targetLength)
         .replace(/\{contentsCount\}/g, contentsArray.length)
         .replace(/\{companyInfo\}/g, companyInfoText)
         .replace(/\{combinedContent\}/g, combinedContent);
         
     } else {
-      // 기본 프롬프트
+      // 기본 프롬프트 (네이버 SEO 최적화)
       console.log('[AutoPosting] 기본 프롬프트 사용');
       
-      if (companyName && companyInfo) {
-        // 업체명과 특성이 모두 있을 때
-        systemMessage = `당신은 네이버 블로그 상위노출 전문 작가입니다. "${companyName}" 업체를 홍보하는 공백 포함 ${targetLength}자 이상의 긴 블로그 글을 작성합니다. 다른 가게 이야기는 절대 하지 않습니다.`;
-        
-        prompt = `🎯 **핵심 미션**: "${companyName}" 업체를 홍보하는 공백 포함 ${targetLength}자 이상의 블로그 글 작성!
+      prompt = `당신은 네이버 블로그 상위노출 전문 작가입니다. 아래 ${contentsArray.length}개의 블로그 글을 참고하여, "${searchKeyword}"에 대한 네이버 검색 최적화 블로그 글을 작성해주세요.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📌 네이버 블로그 상위노출 최적화 요구사항:
+1. 목표 글자수: ${targetLength}자 이상 (공백 포함, 네이버는 1500자 이상 선호)
+2. 핵심 키워드 배치:
+   - 제목에 반드시 포함: ${titleKeywords || searchKeyword}
+   - 첫 문단에 핵심 키워드 포함
+   - 본문에 자연스럽게 3-5회 반복
+   - 소제목(##)에도 키워드 활용
+3. 구조 최적화:
+   - 명확한 소제목 활용 (## 또는 ###)
+   - 단락은 2-3문장으로 짧게
+   - 번호 또는 불릿 포인트로 정리
+   - 시각적으로 읽기 쉽게 구성
+4. 콘텐츠 품질:
+   - ${contentsArray.length}개 블로그의 핵심 내용 종합
+   - 완전히 새로운 문장으로 재작성 (표절 방지)
+   - 구체적인 수치, 예시, 경험담 포함
+   - 실용적인 팁이나 방법론 제시
+5. 독자 참여 유도:
+   - 질문 형식 사용
+   - "여러분은~", "함께~" 등 친근한 어투
+   - 댓글 유도 문구 포함
+6. 네이버 친화적 표현:
+   - 자연스러운 한국어 (구어체 가능)
+   - 이모지 사용 가능
+   - "추천", "후기", "리뷰", "방법" 등 검색 친화적 단어 활용${companyInfoText}
 
-📏 **필수 글자수**: 공백 포함 ${targetLength}자 이상! (짧으면 안 됨!)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🏢 **홍보할 업체** (이 업체만 이야기하세요!):
-**업체명**: "${companyName}"
-**업체 특성**: "${companyInfo}"
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🔑 **키워드 전략**:
-
-📌 **제목에 반드시 포함** (이것만!):
-- "${searchKeyword}" (검색 키워드)
-- "${companyName}" (업체명)
-${subKeyword ? `- "${subKeyword}" (서브 키워드)` : ''}
-
-📝 **본문에 자연스럽게 포함** (각 2~3회):
-- "${searchKeyword}" (검색 키워드)
-- "${companyName}" (업체명, 5회 이상!)
-${subKeyword ? `- "${subKeyword}" (서브 키워드)` : ''}
-${bodyKeyword1 ? `- "${bodyKeyword1}" (본문 키워드 1)` : ''}
-${bodyKeyword2 ? `- "${bodyKeyword2}" (본문 키워드 2)` : ''}
-${bodyKeyword3 ? `- "${bodyKeyword3}" (본문 키워드 3)` : ''}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📚 **"${searchKeyword}" 상위노출 성공 블로그들** (스타일만 참고):
-
+참고 블로그:
 ${combinedContent}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ 중요: 
+- 키워드 과다 사용 금지 (자연스럽게!)
+- 광고성 문구 최소화
+- 진정성 있는 정보 제공
+- 제목은 30자 이내로 간결하게
 
-✅ **작성 규칙**:
-
-🚨 **가장 중요**:
-1. "${companyName}" 업체만 이야기하세요!
-2. 다른 가게 이름은 절대 언급 금지!
-3. 가상의 가게 만들지 마세요!
-4. "${companyName}"를 글 전체에서 5회 이상 자연스럽게 언급!
-
-📋 **구조** (각 섹션별 최소 글자수):
-
-**제목** (30자 이내):
-- 반드시 포함: "${searchKeyword}", "${companyName}"${subKeyword ? `, "${subKeyword}"` : ''}
-- 예시: "${searchKeyword} 추천, ${companyName}${subKeyword ? ` ${subKeyword}` : ''} 솔직 후기"
-- 본문 키워드는 제목에 넣지 마세요!
-
-**서론** (최소 300자):
-- "${companyName}" 소개
-- 위치와 첫인상
-- 방문 계기
-- "${searchKeyword}"${subKeyword ? ` 및 "${subKeyword}"` : ''} 자연스럽게 언급
-
-**본론 1: "${companyName}"의 시그니처 메뉴** (최소 500자):
-- "${companyInfo}"에 나온 메뉴 상세 설명
-- 맛, 식감, 향, 비주얼 구체적으로
-${bodyKeyword1 ? `- "${bodyKeyword1}" 키워드 자연스럽게 포함` : ''}
-- 가격대, 양, 추천 이유
-
-**본론 2: "${companyName}"의 다른 메뉴들** (최소 400자):
-- "${companyInfo}"의 다른 메뉴들
-${bodyKeyword2 ? `- "${bodyKeyword2}" 키워드 자연스럽게 포함` : ''}
-- 각 메뉴별 특징
-- 메뉴 조합 추천
-
-**본론 3: "${companyName}"의 분위기** (최소 400자):
-- "${companyInfo}"에 나온 분위기 묘사
-${bodyKeyword3 ? `- "${bodyKeyword3}" 키워드 자연스럽게 포함` : ''}
-- 인테리어, 좌석 배치
-- 어떤 손님에게 적합한지
-
-**본론 4: "${companyName}" 방문 팁** (최소 300자):
-- 위치 및 찾아가는 법
-- 주차 정보
-- 추천 시간대
-- "${searchKeyword}"${subKeyword ? ` 중 "${subKeyword}"` : ''} 언급
-
-**결론** (최소 200자):
-- "${companyName}" 총평
-- "${searchKeyword}" 관련 마무리
-- 재방문 의향
-- 댓글 유도
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-💡 **키워드 사용 팁**:
-- 키워드를 자연스럽게 문장에 녹여내세요
-- 억지로 넣지 말고 맥락에 맞게 사용
-- 제목 키워드와 본문 키워드를 섞지 마세요
-- 각 본문 키워드를 골고루 분산 배치
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-⚠️ **최종 체크리스트**:
-☑️ 공백 포함 ${targetLength}자 이상
-☑️ 제목: "${searchKeyword}" + "${companyName}"${subKeyword ? ` + "${subKeyword}"` : ''} 포함
-☑️ "${companyName}" 5회 이상 언급
-☑️ 본문 키워드 자연스럽게 분산
-☑️ "${companyInfo}"의 정보만 사용
-☑️ 다른 가게 이름 절대 언급 안 함
-☑️ 상위노출 스타일 반영
-
-🔥 지금 바로 "${companyName}"에 대한 ${targetLength}자 이상의 긴 블로그 글을 작성하세요!`;
-
-      } else {
-        // 업체명이나 특성이 없을 때
-        systemMessage = `당신은 네이버 블로그 상위노출 전문 작가입니다. 공백 포함 ${targetLength}자 이상의 긴 블로그 글을 작성합니다.`;
-        
-        prompt = `🎯 **미션**: "${searchKeyword}"에 대한 공백 포함 ${targetLength}자 이상의 블로그 글 작성!
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📏 **필수 글자수**: 공백 포함 ${targetLength}자 이상!
-
-🔑 **검색 키워드**: ${searchKeyword}
-${subKeyword ? `📌 **서브 키워드**: ${subKeyword}` : ''}
-${bodyKeywords ? `📝 **본문 키워드**: ${bodyKeywords}` : ''}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📚 **상위노출 성공 블로그들** (스타일 참고):
-
-${combinedContent}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-✅ **작성 방법**:
-
-**제목**: "${searchKeyword}"${subKeyword ? ` + "${subKeyword}"` : ''} 포함
-
-**본문**: 
-- 위 블로그들의 스타일 분석
-- 핵심 정보를 종합하여 새로운 글 작성
-- 각 섹션을 충분히 길고 상세하게
-- 본문 키워드 자연스럽게 분산 배치
-
-📋 **구조** (각 섹션 최소 글자수):
-- 서론 (300자)
-- 본론 섹션 1 (500자)
-- 본론 섹션 2 (500자)
-- 본론 섹션 3 (500자)
-- 본론 섹션 4 (400자)
-- 결론 (200자)
-
-🔥 공백 포함 ${targetLength}자 이상 필수! 지금 작성하세요!`;
-      }
+위 네이버 SEO 원칙에 따라 ${targetLength}자 이상의 고품질 블로그 글을 작성해주세요.`;
     }
 
     // OpenAI API 호출
@@ -268,7 +141,7 @@ ${combinedContent}
       messages: [
         {
           role: 'system',
-          content: systemMessage
+          content: '당신은 SEO에 최적화된 고품질 블로그 콘텐츠를 작성하는 전문 작가입니다.'
         },
         {
           role: 'user',
@@ -276,7 +149,7 @@ ${combinedContent}
         }
       ],
       temperature: 0.7,
-      max_tokens: 10000
+      max_tokens: 4000
     });
 
     const rewrittenContent = completion.choices[0].message.content;
@@ -284,17 +157,14 @@ ${combinedContent}
     // 글자 수 계산
     const wordCount = rewrittenContent.length;
     const wordCountNoSpaces = rewrittenContent.replace(/\s/g, '').length;
-    const isLengthValid = wordCount >= targetLength * 0.9; // 공백 포함 기준
+    const isLengthValid = wordCount >= targetLength * 0.8 && wordCount <= targetLength * 1.2;
 
     console.log(`[AutoPosting] 재작성 완료: ${wordCount}자 (공백 제외: ${wordCountNoSpaces}자)`);
-    console.log(`[AutoPosting] 목표: ${targetLength}자 (공백 포함), 달성: ${isLengthValid}`);
 
     return res.status(200).json({
       success: true,
       searchKeyword: searchKeyword,
-      subKeyword: subKeyword,
-      bodyKeywords: bodyKeywords,
-      companyName: companyName,
+      titleKeywords: titleKeywords,
       rewrittenContent: rewrittenContent,
       wordCount: wordCount,
       wordCountNoSpaces: wordCountNoSpaces,
