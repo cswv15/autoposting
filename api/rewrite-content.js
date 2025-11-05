@@ -1,13 +1,10 @@
-import OpenAI from 'openai';
+const { OpenAI } = require('openai');
 
-/**
- * ChatGPT를 이용한 블로그 콘텐츠 재작성
- */
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -28,16 +25,13 @@ export default async function handler(req, res) {
 
     console.log(`[AutoPosting] 재작성 시작: ${keyword} (${contents.length}개 참고)`);
 
-    // 3개의 블로그 글을 하나의 프롬프트로 구성
     const contentsText = contents.map((item, index) => {
-      // 너무 긴 내용은 잘라내기 (토큰 절약)
       const trimmedContent = item.content.substring(0, 2000);
       return `=== 참고자료 ${index + 1} ===\n${trimmedContent}\n`;
     }).join('\n\n');
 
-    // ChatGPT API 호출
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini', // 비용 효율적
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -71,10 +65,10 @@ ${contentsText}
 독자가 실제로 도움받을 수 있는 실용적인 내용으로 작성해주세요.`
         }
       ],
-      temperature: 0.8,        // 창의성
-      max_tokens: 2500,        // 충분한 길이
-      presence_penalty: 0.6,   // 반복 줄임
-      frequency_penalty: 0.6   // 다양한 표현
+      temperature: 0.8,
+      max_tokens: 2500,
+      presence_penalty: 0.6,
+      frequency_penalty: 0.6
     });
 
     const rewrittenContent = completion.choices[0].message.content;
@@ -95,7 +89,6 @@ ${contentsText}
   } catch (error) {
     console.error('[AutoPosting] 재작성 오류:', error.message);
     
-    // OpenAI API 에러 처리
     if (error.response) {
       return res.status(error.response.status).json({
         success: false,
@@ -110,4 +103,4 @@ ${contentsText}
       error: error.message
     });
   }
-}
+};
