@@ -130,14 +130,14 @@ module.exports = async function handler(req, res) {
 
     console.log(`[AutoPosting] 스크래핑 완료: ${content.length}자 (${method})`);
 
-return res.status(200).json([{
+return res.status(200).json({
   success: true,
   url: url,
   content: content,
   contentLength: content.length,
   method: method,
   timestamp: new Date().toISOString()
-}]);
+});
 
   } catch (error) {
     console.error('[AutoPosting] 스크래핑 오류:', error.message);
