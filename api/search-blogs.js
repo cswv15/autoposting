@@ -5,7 +5,7 @@ const NAVER_CLIENT_SECRET = process.env.NAVER_CLIENT_SECRET;
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -13,12 +13,33 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { keyword, count = 3 } = req.body;
+    console.log('[AutoPosting] 요청 메서드:', req.method);
+    console.log('[AutoPosting] req.query:', JSON.stringify(req.query));
+    console.log('[AutoPosting] req.body:', JSON.stringify(req.body));
+
+    // GET/POST 둘 다 안전하게 처리
+    let keyword;
+    let count = 3;
+
+    if (req.method === 'GET') {
+      keyword = req.query?.keyword;
+      count = parseInt(req.query?.count) || 3;
+    } else if (req.method === 'POST') {
+      keyword = req.body?.keyword;
+      count = req.body?.count || 3;
+    }
+
+    console.log(`[AutoPosting] keyword: ${keyword}, count: ${count}`);
 
     if (!keyword) {
       return res.status(400).json({
         success: false,
-        error: '검색 키워드를 입력해주세요'
+        error: '검색 키워드를 입력해주세요',
+        debug: {
+          method: req.method,
+          query: req.query,
+          body: req.body
+        }
       });
     }
 
@@ -98,6 +119,7 @@ module.exports = async function handler(req, res) {
 
   } catch (error) {
     console.error('[AutoPosting] 블로그 검색 오류:', error.message);
+    console.error('[AutoPosting] Stack:', error.stack);
 
     return res.status(500).json({
       success: false,
