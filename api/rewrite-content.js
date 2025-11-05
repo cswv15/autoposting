@@ -14,93 +14,60 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { keyword, contents, targetLength = 1500 } = req.body;
+    const { 
+      searchKeyword,        // 네이버 검색용 키워드
+      titleKeyword1 = '',   // 제목 키워드 1
+      titleKeyword2 = '',   // 제목 키워드 2
+      titleKeyword3 = '',   // 제목 키워드 3
+      contents, 
+      targetLength = 1500,  // 목표 글자수
+      companyInfo = ''      // 업체 특성
+    } = req.body;
 
-    if (!keyword || !contents || contents.length === 0) {
+    // 검증
+    if (!searchKeyword || !contents || contents.length === 0) {
       return res.status(400).json({ 
         success: false,
-        error: '키워드와 참고 콘텐츠가 필요합니다' 
+        error: '검색 키워드와 참고 콘텐츠가 필요합니다' 
       });
     }
 
-    console.log(`[AutoPosting] 재작성 시작: ${keyword} (${contents.length}개 참고)`);
+    // 제목 키워드 정리
+    const titleKeywords = [titleKeyword1, titleKeyword2, titleKeyword3]
+      .filter(k => k && k.trim().length > 0);
+
+    console.log(`[AutoPosting] 재작성 시작`);
+    console.log(`- 검색 키워드: ${searchKeyword}`);
+    console.log(`- 제목 키워드: ${titleKeywords.join(', ')}`);
+    console.log(`- 목표 글자수: ${targetLength}자 (최대 ${Math.floor(targetLength * 1.2)}자)`);
+    console.log(`- 업체 특성: ${companyInfo ? '있음' : '없음'}`);
 
     const contentsText = contents.map((item, index) => {
       const trimmedContent = item.content.substring(0, 2000);
       return `=== 참고자료 ${index + 1} ===\n${trimmedContent}\n`;
     }).join('\n\n');
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: `당신은 전문 블로그 콘텐츠 작가입니다. 
+    // 제목 키워드 안내 문구
+    const titleKeywordInstruction = titleKeywords.length > 0
+      ? `\n\n제목 작성 규칙:
+- 다음 키워드들을 제목에 자연스럽게 포함해야 합니다: ${titleKeywords.map(k => `"${k}"`).join(', ')}
+- 키워드를 억지로 나열하지 말고, 자연스러운 문장으로 만드세요
+- 제목은 클릭을 유도할 수 있도록 매력적으로 작성하세요
+- 제목 예시: "${titleKeywords[0]}${titleKeywords[1] ? ' ' + titleKeywords[1] : ''}, 이것만 알면 됩니다"`
+      : '';
+
+    // 시스템 프롬프트
+    const systemPrompt = `당신은 전문 블로그 콘텐츠 작가입니다. 
 주어진 여러 블로그 글을 참고하여 완전히 새로운 스타일로 재작성하는 것이 당신의 임무입니다.
 
-중요 규칙:
+핵심 규칙:
 1. 절대 원문을 그대로 복사하지 마세요
 2. 문장 구조, 표현 방식을 완전히 바꾸세요
-3. 새로운 예시나 설명을 추가해도 좋습니다
-4. 자연스러운 한국어로 작성하세요
-5. 블로그 글 형식으로 친근하게 작성하세요
-6. 목표 길이: 약 ${targetLength}자
+3. 자연스러운 한국어로 작성하세요
+4. 블로그 글 형식으로 친근하게 작성하세요
 
-구조:
-- 도입부: 독자의 관심을 끄는 질문이나 공감 (2-3문장)
-- 본문: 핵심 내용 3-5가지 포인트를 소제목과 함께
-- 마무리: 실천 방법이나 요약 (2-3문장)
-
-톤 앤 매너: 친근하고 실용적이며, 독자에게 도움이 되는 조언 제공`
-        },
-        {
-          role: 'user',
-          content: `키워드: "${keyword}"
-
-다음 블로그 글들을 참고하여 "${keyword}"에 대한 완전히 새로운 블로그 글을 작성해주세요:
-
-${contentsText}
-
-위 내용을 참고하되, 완전히 다른 문체와 구조로 새로운 블로그 글을 작성해주세요.
-독자가 실제로 도움받을 수 있는 실용적인 내용으로 작성해주세요.`
-        }
-      ],
-      temperature: 0.8,
-      max_tokens: 2500,
-      presence_penalty: 0.6,
-      frequency_penalty: 0.6
-    });
-
-    const rewrittenContent = completion.choices[0].message.content;
-
-    console.log(`[AutoPosting] 재작성 완료: ${rewrittenContent.length}자, 토큰: ${completion.usage.total_tokens}`);
-
-    return res.status(200).json({
-      success: true,
-      keyword: keyword,
-      originalCount: contents.length,
-      rewrittenContent: rewrittenContent,
-      wordCount: rewrittenContent.length,
-      tokensUsed: completion.usage.total_tokens,
-      model: completion.model,
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error) {
-    console.error('[AutoPosting] 재작성 오류:', error.message);
-    
-    if (error.response) {
-      return res.status(error.response.status).json({
-        success: false,
-        error: 'OpenAI API 오류',
-        details: error.response.data,
-        hint: 'API Key를 확인해주세요'
-      });
-    }
-
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-};
+글자수 제약 (매우 중요!):
+- 목표: ${targetLength}자 (공백 제외)
+- 최소: ${targetLength}자 (절대 이보다 짧으면 안됨!)
+- 최대: ${Math.floor(targetLength * 1.2)}자 (이를 초과하면 안됨!)
+- 공백은
