@@ -31,8 +31,8 @@ module.exports = async function handler(req, res) {
         method = 'browserless';
         console.log('[AutoPosting] Browserless 사용');
         
-        const browserlessResponse = await axios.post(
-          `https://chrome.browserless.io/content?token=${process.env.BROWSERLESS_API_KEY}`,
+const browserlessResponse = await axios.post(
+  `https://production-sfo.browserless.io/content?token=${process.env.BROWSERLESS_API_KEY}`,
           {
             url: url,
             waitFor: 2000,
