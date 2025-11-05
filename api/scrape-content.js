@@ -1,5 +1,5 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 
 /**
  * 네이버 블로그 본문 스크래핑
