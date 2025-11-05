@@ -23,10 +23,11 @@ module.exports = async function handler(req, res) {
       titleKeyword3 = '',
       contents, 
       targetLength = 1500,
-      companyInfo = ''
+      companyInfo = '',
+      customPrompt = ''
     } = req.body;
 
-    // contents 검증 및 배열 변환
+    // contents 검증
     if (!contents) {
       return res.status(400).json({
         success: false,
@@ -35,9 +36,17 @@ module.exports = async function handler(req, res) {
     }
 
     // 배열이 아니면 배열로 변환
-    const contentsArray = Array.isArray(contents) ? contents : [contents];
-    console.log(`[AutoPosting] contents 개수: ${contentsArray.length}`);
+    let contentsArray = Array.isArray(contents) ? contents : [contents];
+    console.log(`[AutoPosting] contents 초기 개수: ${contentsArray.length}`);
     console.log(`[AutoPosting] contents 타입: ${typeof contents}, 배열 여부: ${Array.isArray(contents)}`);
+
+    // Make.com Array Aggregator 구조 처리: [{Data: {...}}, {Data: {...}}]
+    if (contentsArray.length > 0 && contentsArray[0].Data) {
+      console.log('[AutoPosting] Array Aggregator 형식 감지, Data 추출');
+      contentsArray = contentsArray.map(item => item.Data);
+    }
+
+    console.log(`[AutoPosting] 최종 contents 개수: ${contentsArray.length}`);
 
     if (!searchKeyword) {
       return res.status(400).json({
@@ -62,20 +71,65 @@ module.exports = async function handler(req, res) {
 
     const companyInfoText = companyInfo ? `\n\n업체 특성: ${companyInfo}` : '';
 
-    const prompt = `당신은 전문 블로그 작가입니다. 아래 ${contentsArray.length}개의 블로그 글을 참고하여, "${searchKeyword}"에 대한 새로운 블로그 글을 작성해주세요.
+    // 커스텀 프롬프트가 있으면 사용, 없으면 기본 프롬프트
+    let prompt;
 
-요구사항:
-1. 목표 글자수: ${targetLength}자 (공백 포함)
-2. 제목에 포함할 키워드: ${titleKeywords || searchKeyword}
-3. ${contentsArray.length}개 블로그의 핵심 내용을 종합하되, 완전히 새로운 문장으로 작성
-4. 자연스러운 한국어 표현 사용
-5. 구체적인 예시와 설명 포함
-6. SEO 최적화된 구조 (소제목 활용)${companyInfoText}
+    if (customPrompt && customPrompt.trim()) {
+      // 사용자가 입력한 커스텀 프롬프트 사용
+      console.log('[AutoPosting] 커스텀 프롬프트 사용');
+      
+      // 변수 치환
+      prompt = customPrompt
+        .replace(/\{searchKeyword\}/g, searchKeyword)
+        .replace(/\{titleKeywords\}/g, titleKeywords)
+        .replace(/\{targetLength\}/g, targetLength)
+        .replace(/\{contentsCount\}/g, contentsArray.length)
+        .replace(/\{companyInfo\}/g, companyInfoText)
+        .replace(/\{combinedContent\}/g, combinedContent);
+        
+    } else {
+      // 기본 프롬프트 (네이버 SEO 최적화)
+      console.log('[AutoPosting] 기본 프롬프트 사용');
+      
+      prompt = `당신은 네이버 블로그 상위노출 전문 작가입니다. 아래 ${contentsArray.length}개의 블로그 글을 참고하여, "${searchKeyword}"에 대한 네이버 검색 최적화 블로그 글을 작성해주세요.
+
+📌 네이버 블로그 상위노출 최적화 요구사항:
+1. 목표 글자수: ${targetLength}자 이상 (공백 포함, 네이버는 1500자 이상 선호)
+2. 핵심 키워드 배치:
+   - 제목에 반드시 포함: ${titleKeywords || searchKeyword}
+   - 첫 문단에 핵심 키워드 포함
+   - 본문에 자연스럽게 3-5회 반복
+   - 소제목(##)에도 키워드 활용
+3. 구조 최적화:
+   - 명확한 소제목 활용 (## 또는 ###)
+   - 단락은 2-3문장으로 짧게
+   - 번호 또는 불릿 포인트로 정리
+   - 시각적으로 읽기 쉽게 구성
+4. 콘텐츠 품질:
+   - ${contentsArray.length}개 블로그의 핵심 내용 종합
+   - 완전히 새로운 문장으로 재작성 (표절 방지)
+   - 구체적인 수치, 예시, 경험담 포함
+   - 실용적인 팁이나 방법론 제시
+5. 독자 참여 유도:
+   - 질문 형식 사용
+   - "여러분은~", "함께~" 등 친근한 어투
+   - 댓글 유도 문구 포함
+6. 네이버 친화적 표현:
+   - 자연스러운 한국어 (구어체 가능)
+   - 이모지 사용 가능
+   - "추천", "후기", "리뷰", "방법" 등 검색 친화적 단어 활용${companyInfoText}
 
 참고 블로그:
 ${combinedContent}
 
-위 내용을 참고하여 ${targetLength}자 분량의 새로운 블로그 글을 작성해주세요. 제목도 함께 작성해주세요.`;
+⚠️ 중요: 
+- 키워드 과다 사용 금지 (자연스럽게!)
+- 광고성 문구 최소화
+- 진정성 있는 정보 제공
+- 제목은 30자 이내로 간결하게
+
+위 네이버 SEO 원칙에 따라 ${targetLength}자 이상의 고품질 블로그 글을 작성해주세요.`;
+    }
 
     // OpenAI API 호출
     const completion = await openai.chat.completions.create({
