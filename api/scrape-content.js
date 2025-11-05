@@ -113,10 +113,14 @@ module.exports = async function handler(req, res) {
     }
 
     // 텍스트 정제
+    const fullLength = content.length;
     content = content
       .replace(/\s+/g, ' ')
       .replace(/\n+/g, '\n')
-      .trim();
+      .trim()
+      .substring(0, 3000); // 최대 3000자로 제한
+
+    console.log(`[AutoPosting] 원본: ${fullLength}자 → 잘림 후: ${content.length}자`);
 
     // 최소 글자 수 체크
     if (content.length < 100) {
@@ -130,14 +134,14 @@ module.exports = async function handler(req, res) {
 
     console.log(`[AutoPosting] 스크래핑 완료: ${content.length}자 (${method})`);
 
-return res.status(200).json({
-  success: true,
-  url: url,
-  content: content,
-  contentLength: content.length,
-  method: method,
-  timestamp: new Date().toISOString()
-});
+    return res.status(200).json({
+      success: true,
+      url: url,
+      content: content,
+      contentLength: content.length,
+      method: method,
+      timestamp: new Date().toISOString()
+    });
 
   } catch (error) {
     console.error('[AutoPosting] 스크래핑 오류:', error.message);
