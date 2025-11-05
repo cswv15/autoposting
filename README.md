@@ -32,22 +32,3 @@
 ## 작성자
 
 최승웅 - KeywordPurple
-```
-
-**Commit changes**
-
----
-
-# ✅ 완료! 
-
-이제 GitHub에 이런 구조가 만들어졌어요:
-```
-autoposting/
-├── api/
-│   ├── search-blogs.js
-│   ├── scrape-content.js
-│   └── rewrite-content.js
-├── .gitignore
-├── package.json
-├── vercel.json
-└── README.md
