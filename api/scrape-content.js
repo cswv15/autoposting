@@ -112,15 +112,24 @@ module.exports = async function handler(req, res) {
                 '';
     }
 
-    // 텍스트 정제
+    // 텍스트 정제 + 이모지 제거
     const fullLength = content.length;
     content = content
       .replace(/\s+/g, ' ')
       .replace(/\n+/g, '\n')
+      .replace(/[\u{1F600}-\u{1F64F}]/gu, '') // 이모티콘
+      .replace(/[\u{1F300}-\u{1F5FF}]/gu, '') // 기호 & 픽토그램
+      .replace(/[\u{1F680}-\u{1F6FF}]/gu, '') // 교통 & 지도
+      .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '') // 국기
+      .replace(/[\u{2600}-\u{26FF}]/gu, '')   // 기타 기호
+      .replace(/[\u{2700}-\u{27BF}]/gu, '')   // 딩뱃
+      .replace(/[\u{FE00}-\u{FE0F}]/gu, '')   // 변형 선택자
+      .replace(/[\u{1F900}-\u{1F9FF}]/gu, '') // 보충 기호
+      .replace(/[\u{1FA00}-\u{1FA6F}]/gu, '') // 체스 기호
       .trim()
       .substring(0, 2000); // 최대 2000자로 제한
 
-    console.log(`[AutoPosting] 원본: ${fullLength}자 → 잘림 후: ${content.length}자`);
+    console.log(`[AutoPosting] 원본: ${fullLength}자 → 이모지 제거 후: ${content.length}자`);
 
     // 최소 글자 수 체크
     if (content.length < 100) {
