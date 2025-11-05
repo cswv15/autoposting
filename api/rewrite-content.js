@@ -73,14 +73,14 @@ module.exports = async function handler(req, res) {
       .filter(k => k && k.trim())
       .join(', ');
 
-    const companyInfoText = companyInfo ? `\n\n업체 특성: ${companyInfo}` : '';
-
     // 커스텀 프롬프트가 있으면 사용, 없으면 기본 프롬프트
     let prompt;
 
     if (customPrompt && customPrompt.trim()) {
       // 사용자가 입력한 커스텀 프롬프트 사용
       console.log('[AutoPosting] 커스텀 프롬프트 사용');
+      
+      const companyInfoText = companyInfo ? `\n\n업체 특성: ${companyInfo}` : '';
       
       // 변수 치환
       prompt = customPrompt
@@ -95,7 +95,12 @@ module.exports = async function handler(req, res) {
       // 기본 프롬프트 (네이버 SEO 최적화)
       console.log('[AutoPosting] 기본 프롬프트 사용');
       
-      prompt = `당신은 네이버 블로그 상위노출 전문 작가입니다. 아래 ${contentsArray.length}개의 블로그 글을 참고하여, "${searchKeyword}"에 대한 네이버 검색 최적화 블로그 글을 작성해주세요.
+      // 업체 특성이 있을 때 강조
+      const companyFocus = companyInfo 
+        ? `\n\n🎯 **중요**: 이 글은 다음 업체를 홍보하는 글입니다:\n"${companyInfo}"\n\n위 업체의 특성, 위치, 메뉴를 자연스럽게 본문에 포함하여 작성해주세요. 업체와 관련 없는 다른 가게나 일반적인 이야기만 하지 마세요.`
+        : '';
+      
+      prompt = `당신은 네이버 블로그 상위노출 전문 작가입니다. 아래 ${contentsArray.length}개의 블로그 글을 참고하여, "${searchKeyword}"에 대한 네이버 검색 최적화 블로그 글을 작성해주세요.${companyFocus}
 
 📌 네이버 블로그 상위노출 최적화 요구사항:
 1. 목표 글자수: ${targetLength}자 이상 (공백 포함, 네이버는 1500자 이상 선호)
@@ -113,15 +118,15 @@ module.exports = async function handler(req, res) {
    - ${contentsArray.length}개 블로그의 핵심 내용 종합
    - 완전히 새로운 문장으로 재작성 (표절 방지)
    - 구체적인 수치, 예시, 경험담 포함
-   - 실용적인 팁이나 방법론 제시
+   - 실용적인 팁이나 방법론 제시${companyInfo ? '\n   - **반드시 위에 명시된 업체의 특성, 위치, 메뉴를 자연스럽게 소개하고 강조**' : ''}
 5. 독자 참여 유도:
    - 질문 형식 사용
    - "여러분은~", "함께~" 등 친근한 어투
    - 댓글 유도 문구 포함
 6. 네이버 친화적 표현:
    - 자연스러운 한국어 (구어체 가능)
-   - 이모지 사용 가능
-   - "추천", "후기", "리뷰", "방법" 등 검색 친화적 단어 활용${companyInfoText}
+   - 이모지 사용 불가
+   - "추천", "후기", "리뷰", "방법" 등 검색 친화적 단어 활용
 
 참고 블로그:
 ${combinedContent}
@@ -130,7 +135,7 @@ ${combinedContent}
 - 키워드 과다 사용 금지 (자연스럽게!)
 - 광고성 문구 최소화
 - 진정성 있는 정보 제공
-- 제목은 30자 이내로 간결하게
+- 제목은 30자 이내로 간결하게${companyInfo ? '\n- **업체 특성에 맞는 내용으로만 작성하고, 업체 정보를 본문에 자연스럽게 포함**' : ''}
 
 위 네이버 SEO 원칙에 따라 ${targetLength}자 이상의 고품질 블로그 글을 작성해주세요.`;
     }
