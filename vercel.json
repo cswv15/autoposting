@@ -7,10 +7,5 @@
       "memory": 1024
     }
   },
-  "regions": ["icn1"],
-  "api": {
-    "bodyParser": {
-      "sizeLimit": "10mb"
-    }
-  }
+  "regions": ["icn1"]
 }
