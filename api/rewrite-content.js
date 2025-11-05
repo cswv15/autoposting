@@ -18,18 +18,25 @@ module.exports = async function handler(req, res) {
 
     const { 
       searchKeyword,
-      titleKeyword1 = '',
-      titleKeyword2 = '',
-      titleKeyword3 = '',
+      subKeyword = '',
+      bodyKeyword1 = '',
+      bodyKeyword2 = '',
+      bodyKeyword3 = '',
+      companyName = '',
       contents, 
-      targetLength = 2000,  // 기본값을 2000으로
       companyInfo: rawCompanyInfo = '',
       customPrompt = ''
     } = req.body;
 
+    // 고정된 목표 글자수: 공백 포함 2500자
+    const targetLength = 2500;
+
     // companyInfo에서 줄바꿈 제거
     const companyInfo = rawCompanyInfo ? rawCompanyInfo.replace(/[\r\n]+/g, ' ').trim() : '';
-    console.log('[AutoPosting] companyInfo (줄바꿈 제거 후):', companyInfo.substring(0, 100));
+    console.log('[AutoPosting] companyName:', companyName);
+    console.log('[AutoPosting] searchKeyword:', searchKeyword);
+    console.log('[AutoPosting] subKeyword:', subKeyword);
+    console.log('[AutoPosting] bodyKeywords:', bodyKeyword1, bodyKeyword2, bodyKeyword3);
 
     // contents 검증
     if (!contents) {
@@ -58,11 +65,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    // targetLength는 공백 제외 기준으로 해석
-    const minWordCountNoSpaces = Math.max(targetLength, 2000); // 최소 2000자 보장
-    const minWordCountWithSpaces = Math.floor(minWordCountNoSpaces * 1.3); // 공백 포함은 약 1.3배
-
-    console.log(`[AutoPosting] 재작성 시작 - 키워드: ${searchKeyword}, 목표 길이: ${minWordCountNoSpaces}자 (공백 제외)`);
+    console.log(`[AutoPosting] 재작성 시작 - 목표 길이: ${targetLength}자 (공백 포함)`);
 
     // 블로그 본문 결합
     const combinedContent = contentsArray
@@ -71,8 +74,8 @@ module.exports = async function handler(req, res) {
 
     console.log(`[AutoPosting] 결합된 본문 길이: ${combinedContent.length}자`);
 
-    // ChatGPT 프롬프트
-    const titleKeywords = [titleKeyword1, titleKeyword2, titleKeyword3]
+    // 본문 키워드 정리
+    const bodyKeywords = [bodyKeyword1, bodyKeyword2, bodyKeyword3]
       .filter(k => k && k.trim())
       .join(', ');
 
@@ -84,14 +87,16 @@ module.exports = async function handler(req, res) {
       // 사용자가 입력한 커스텀 프롬프트 사용
       console.log('[AutoPosting] 커스텀 프롬프트 사용');
       
-      systemMessage = `SEO에 최적화된 고품질 블로그 콘텐츠를 작성하는 전문 작가입니다. 반드시 공백 제외 ${minWordCountNoSpaces}자 이상의 긴 글을 작성해야 합니다.`;
+      systemMessage = `SEO에 최적화된 고품질 블로그 콘텐츠를 작성하는 전문 작가입니다. 반드시 공백 포함 ${targetLength}자 이상의 긴 글을 작성해야 합니다.`;
       const companyInfoText = companyInfo ? `\n\n업체 특성: ${companyInfo}` : '';
       
       // 변수 치환
       prompt = customPrompt
         .replace(/\{searchKeyword\}/g, searchKeyword)
-        .replace(/\{titleKeywords\}/g, titleKeywords)
-        .replace(/\{targetLength\}/g, minWordCountNoSpaces)
+        .replace(/\{subKeyword\}/g, subKeyword)
+        .replace(/\{bodyKeywords\}/g, bodyKeywords)
+        .replace(/\{companyName\}/g, companyName)
+        .replace(/\{targetLength\}/g, targetLength)
         .replace(/\{contentsCount\}/g, contentsArray.length)
         .replace(/\{companyInfo\}/g, companyInfoText)
         .replace(/\{combinedContent\}/g, combinedContent);
@@ -100,122 +105,136 @@ module.exports = async function handler(req, res) {
       // 기본 프롬프트
       console.log('[AutoPosting] 기본 프롬프트 사용');
       
-      if (companyInfo) {
-        // 업체 특성이 있을 때
-        systemMessage = `당신은 네이버 블로그 상위노출 전문 작가입니다. 반드시 공백 제외 ${minWordCountNoSpaces}자 이상의 긴 글을 작성해야 합니다. 짧은 글은 절대 불가능합니다.`;
+      if (companyName && companyInfo) {
+        // 업체명과 특성이 모두 있을 때
+        systemMessage = `당신은 네이버 블로그 상위노출 전문 작가입니다. "${companyName}" 업체를 홍보하는 공백 포함 ${targetLength}자 이상의 긴 블로그 글을 작성합니다. 다른 가게 이야기는 절대 하지 않습니다.`;
         
-        prompt = `🚨 **긴급 필수 요구사항**: 공백 제외 ${minWordCountNoSpaces}자 이상 작성! 짧으면 안 됩니다!
+        prompt = `🎯 **핵심 미션**: "${companyName}" 업체를 홍보하는 공백 포함 ${targetLength}자 이상의 블로그 글 작성!
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📏 **글자수 요구사항** (가장 중요!):
-- 공백 제외 최소 ${minWordCountNoSpaces}자 필수!
-- 공백 포함 약 ${minWordCountWithSpaces}자
-- ${minWordCountNoSpaces}자 미만은 절대 안 됨!
-- 글자수를 채우기 위해 상세한 설명 필수!
+📏 **필수 글자수**: 공백 포함 ${targetLength}자 이상! (짧으면 안 됨!)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📍 **작성할 업체 정보** (이것에 대해서만 글을 쓰세요!):
-"${companyInfo}"
-
-🔑 **검색 키워드**: ${searchKeyword}
-📝 **제목 키워드**: ${titleKeywords || searchKeyword}
+🏢 **홍보할 업체** (이 업체만 이야기하세요!):
+**업체명**: "${companyName}"
+**업체 특성**: "${companyInfo}"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📚 **아래는 "${searchKeyword}" 키워드로 상위노출에 성공한 블로그 글들입니다:**
+🔑 **키워드 전략**:
+
+📌 **제목에 반드시 포함** (이것만!):
+- "${searchKeyword}" (검색 키워드)
+- "${companyName}" (업체명)
+${subKeyword ? `- "${subKeyword}" (서브 키워드)` : ''}
+
+📝 **본문에 자연스럽게 포함** (각 2~3회):
+- "${searchKeyword}" (검색 키워드)
+- "${companyName}" (업체명, 5회 이상!)
+${subKeyword ? `- "${subKeyword}" (서브 키워드)` : ''}
+${bodyKeyword1 ? `- "${bodyKeyword1}" (본문 키워드 1)` : ''}
+${bodyKeyword2 ? `- "${bodyKeyword2}" (본문 키워드 2)` : ''}
+${bodyKeyword3 ? `- "${bodyKeyword3}" (본문 키워드 3)` : ''}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 **"${searchKeyword}" 상위노출 성공 블로그들** (스타일만 참고):
 
 ${combinedContent}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-✅ **작성 구조** (각 섹션별 최소 글자수):
+✅ **작성 규칙**:
 
-1. **제목** (30자 이내)
-   - "${titleKeywords || searchKeyword}" 포함
+🚨 **가장 중요**:
+1. "${companyName}" 업체만 이야기하세요!
+2. 다른 가게 이름은 절대 언급 금지!
+3. 가상의 가게 만들지 마세요!
+4. "${companyName}"를 글 전체에서 5회 이상 자연스럽게 언급!
 
-2. **서론** (최소 200자):
-   - 업체 소개
-   - 방문 계기
-   - 첫인상
+📋 **구조** (각 섹션별 최소 글자수):
 
-3. **본론 - 메뉴 소개** (최소 1200자):
-   각 메뉴마다 상세히:
-   - 업체의 주요 메뉴 1 (최소 300자)
-     * 메뉴 설명, 맛, 가격, 추천 이유
-   - 업체의 주요 메뉴 2 (최소 300자)
-     * 메뉴 설명, 맛, 가격, 추천 이유
-   - 업체의 주요 메뉴 3 (최소 300자)
-     * 메뉴 설명, 맛, 가격, 추천 이유
-   - 기타 메뉴들 (최소 300자)
+**제목** (30자 이내):
+- 반드시 포함: "${searchKeyword}", "${companyName}"${subKeyword ? `, "${subKeyword}"` : ''}
+- 예시: "${searchKeyword} 추천, ${companyName}${subKeyword ? ` ${subKeyword}` : ''} 솔직 후기"
+- 본문 키워드는 제목에 넣지 마세요!
 
-4. **본론 - 업체 특징** (최소 400자):
-   - 분위기 묘사
-   - 인테리어 설명
-   - 서비스 품질
-   - 위치 및 접근성
+**서론** (최소 300자):
+- "${companyName}" 소개
+- 위치와 첫인상
+- 방문 계기
+- "${searchKeyword}"${subKeyword ? ` 및 "${subKeyword}"` : ''} 자연스럽게 언급
 
-5. **본론 - 방문 팁** (최소 200자):
-   - 추천 시간대
-   - 주차 정보
-   - 예약 방법
-   - 메뉴 조합 추천
+**본론 1: "${companyName}"의 시그니처 메뉴** (최소 500자):
+- "${companyInfo}"에 나온 메뉴 상세 설명
+- 맛, 식감, 향, 비주얼 구체적으로
+${bodyKeyword1 ? `- "${bodyKeyword1}" 키워드 자연스럽게 포함` : ''}
+- 가격대, 양, 추천 이유
 
-6. **결론** (최소 100자):
-   - 총평
-   - 재방문 의향
-   - 추천 대상
-   - 댓글 유도
+**본론 2: "${companyName}"의 다른 메뉴들** (최소 400자):
+- "${companyInfo}"의 다른 메뉴들
+${bodyKeyword2 ? `- "${bodyKeyword2}" 키워드 자연스럽게 포함` : ''}
+- 각 메뉴별 특징
+- 메뉴 조합 추천
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+**본론 3: "${companyName}"의 분위기** (최소 400자):
+- "${companyInfo}"에 나온 분위기 묘사
+${bodyKeyword3 ? `- "${bodyKeyword3}" 키워드 자연스럽게 포함` : ''}
+- 인테리어, 좌석 배치
+- 어떤 손님에게 적합한지
 
-⚠️ **작성 시 주의사항**:
+**본론 4: "${companyName}" 방문 팁** (최소 300자):
+- 위치 및 찾아가는 법
+- 주차 정보
+- 추천 시간대
+- "${searchKeyword}"${subKeyword ? ` 중 "${subKeyword}"` : ''} 언급
 
-✅ **필수**:
-- 공백 제외 ${minWordCountNoSpaces}자 이상 작성
-- "${companyInfo}"의 정보만 사용
-- 참고 블로그 가게 이름 절대 언급 금지
-- 상위노출 스타일 반영
-- 각 문단을 충분히 길고 상세하게
-
-❌ **금지**:
-- 짧은 글 (${minWordCountNoSpaces}자 미만)
-- 참고 블로그의 가게 정보 사용
-- 추상적이고 짧은 설명
-
-💡 **글자수 채우기 팁**:
-- 각 메뉴를 매우 상세히 묘사 (맛, 식감, 향, 비주얼)
-- 방문 경험을 스토리텔링으로 길게 풀어쓰기
-- 구체적인 수치 (가격, 크기, 시간 등) 포함
-- 업주나 직원과의 대화 포함
-- 주변 환경, 교통편 등 부가 정보
+**결론** (최소 200자):
+- "${companyName}" 총평
+- "${searchKeyword}" 관련 마무리
+- 재방문 의향
+- 댓글 유도
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔥 **다시 한번 강조**: 공백 제외 ${minWordCountNoSpaces}자 이상 필수!
+💡 **키워드 사용 팁**:
+- 키워드를 자연스럽게 문장에 녹여내세요
+- 억지로 넣지 말고 맥락에 맞게 사용
+- 제목 키워드와 본문 키워드를 섞지 마세요
+- 각 본문 키워드를 골고루 분산 배치
 
-지금 바로 긴 글을 작성하세요!`;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ **최종 체크리스트**:
+☑️ 공백 포함 ${targetLength}자 이상
+☑️ 제목: "${searchKeyword}" + "${companyName}"${subKeyword ? ` + "${subKeyword}"` : ''} 포함
+☑️ "${companyName}" 5회 이상 언급
+☑️ 본문 키워드 자연스럽게 분산
+☑️ "${companyInfo}"의 정보만 사용
+☑️ 다른 가게 이름 절대 언급 안 함
+☑️ 상위노출 스타일 반영
+
+🔥 지금 바로 "${companyName}"에 대한 ${targetLength}자 이상의 긴 블로그 글을 작성하세요!`;
 
       } else {
-        // 업체 특성이 없을 때
-        systemMessage = `당신은 네이버 블로그 상위노출 전문 작가입니다. 반드시 공백 제외 ${minWordCountNoSpaces}자 이상의 긴 글을 작성해야 합니다.`;
+        // 업체명이나 특성이 없을 때
+        systemMessage = `당신은 네이버 블로그 상위노출 전문 작가입니다. 공백 포함 ${targetLength}자 이상의 긴 블로그 글을 작성합니다.`;
         
-        prompt = `🚨 **필수**: 공백 제외 ${minWordCountNoSpaces}자 이상 작성!
+        prompt = `🎯 **미션**: "${searchKeyword}"에 대한 공백 포함 ${targetLength}자 이상의 블로그 글 작성!
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📏 **글자수 요구사항**:
-- 공백 제외 최소 ${minWordCountNoSpaces}자!
-- 공백 포함 약 ${minWordCountWithSpaces}자
-- 상세하고 구체적인 설명으로 목표 달성
+📏 **필수 글자수**: 공백 포함 ${targetLength}자 이상!
 
 🔑 **검색 키워드**: ${searchKeyword}
-📝 **제목 키워드**: ${titleKeywords || searchKeyword}
+${subKeyword ? `📌 **서브 키워드**: ${subKeyword}` : ''}
+${bodyKeywords ? `📝 **본문 키워드**: ${bodyKeywords}` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📚 **상위노출 성공 블로그들**:
+📚 **상위노출 성공 블로그들** (스타일 참고):
 
 ${combinedContent}
 
@@ -223,22 +242,23 @@ ${combinedContent}
 
 ✅ **작성 방법**:
 
-1. 위 블로그들의 스타일 분석
-2. 핵심 정보를 종합하여 새로운 글 작성
-3. 각 섹션을 충분히 길고 상세하게
-4. 구체적인 예시와 팁 풍부하게
+**제목**: "${searchKeyword}"${subKeyword ? ` + "${subKeyword}"` : ''} 포함
+
+**본문**: 
+- 위 블로그들의 스타일 분석
+- 핵심 정보를 종합하여 새로운 글 작성
+- 각 섹션을 충분히 길고 상세하게
+- 본문 키워드 자연스럽게 분산 배치
 
 📋 **구조** (각 섹션 최소 글자수):
-- 서론 (200자)
-- 본론 섹션 1 (400자)
-- 본론 섹션 2 (400자)
-- 본론 섹션 3 (400자)
+- 서론 (300자)
+- 본론 섹션 1 (500자)
+- 본론 섹션 2 (500자)
+- 본론 섹션 3 (500자)
 - 본론 섹션 4 (400자)
 - 결론 (200자)
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🔥 공백 제외 ${minWordCountNoSpaces}자 이상 필수! 지금 작성하세요!`;
+🔥 공백 포함 ${targetLength}자 이상 필수! 지금 작성하세요!`;
       }
     }
 
@@ -264,19 +284,21 @@ ${combinedContent}
     // 글자 수 계산
     const wordCount = rewrittenContent.length;
     const wordCountNoSpaces = rewrittenContent.replace(/\s/g, '').length;
-    const isLengthValid = wordCountNoSpaces >= minWordCountNoSpaces * 0.9; // 공백 제외 기준으로 검증
+    const isLengthValid = wordCount >= targetLength * 0.9; // 공백 포함 기준
 
     console.log(`[AutoPosting] 재작성 완료: ${wordCount}자 (공백 제외: ${wordCountNoSpaces}자)`);
-    console.log(`[AutoPosting] 목표 글자수: ${minWordCountNoSpaces}자 (공백 제외), 달성 여부: ${isLengthValid}`);
+    console.log(`[AutoPosting] 목표: ${targetLength}자 (공백 포함), 달성: ${isLengthValid}`);
 
     return res.status(200).json({
       success: true,
       searchKeyword: searchKeyword,
-      titleKeywords: titleKeywords,
+      subKeyword: subKeyword,
+      bodyKeywords: bodyKeywords,
+      companyName: companyName,
       rewrittenContent: rewrittenContent,
       wordCount: wordCount,
       wordCountNoSpaces: wordCountNoSpaces,
-      targetLength: minWordCountNoSpaces, // 공백 제외 기준으로 반환
+      targetLength: targetLength,
       isLengthValid: isLengthValid,
       tokensUsed: completion.usage.total_tokens,
       timestamp: new Date().toISOString()
