@@ -1,10 +1,17 @@
 {
   "name": "autoposting",
   "version": "1.0.0",
-  "description": "네이버 블로그 재작성 시스템",
+  "description": "네이버 블로그 자동 포스팅 시스템",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev"
+  },
   "dependencies": {
     "axios": "^1.6.0",
     "cheerio": "^1.0.0-rc.12",
     "openai": "^4.20.0"
-  }
+  },
+  "keywords": ["naver", "blog", "autoposting", "ai", "content"],
+  "author": "최승웅",
+  "license": "ISC"
 }
