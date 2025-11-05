@@ -1,3 +1,10 @@
+// Vercel body parser 비활성화
+export const config = {
+  api: {
+    bodyParser: false
+  }
+};
+
 const { OpenAI } = require('openai');
 
 const openai = new OpenAI({
@@ -14,17 +21,49 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // Body 존재 확인
-    if (!req.body) {
-      console.log('[AutoPosting] req.body가 undefined');
-      return res.status(400).json({
-        success: false,
-        error: 'Request body is missing'
-      });
+    // Raw body 읽기
+    let bodyData = '';
+    
+    if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+      // 이미 파싱된 객체인 경우 (로컬 테스트 등)
+      bodyData = JSON.stringify(req.body);
+      console.log('[AutoPosting] Body가 이미 객체로 파싱됨');
+    } else if (req.body && typeof req.body === 'string') {
+      // 문자열인 경우
+      bodyData = req.body;
+      console.log('[AutoPosting] Body가 문자열');
+    } else if (req.body && Buffer.isBuffer(req.body)) {
+      // Buffer인 경우
+      bodyData = req.body.toString('utf-8');
+      console.log('[AutoPosting] Body가 Buffer');
+    } else {
+      // Raw stream 읽기
+      console.log('[AutoPosting] Raw body stream 읽기 시작');
+      const chunks = [];
+      for await (const chunk of req) {
+        chunks.push(chunk);
+      }
+      bodyData = Buffer.concat(chunks).toString('utf-8');
+      console.log('[AutoPosting] Stream 읽기 완료');
     }
 
-    console.log('[AutoPosting] 받은 req.body 타입:', typeof req.body);
-    console.log('[AutoPosting] 받은 req.body:', JSON.stringify(req.body).substring(0, 500));
+    console.log('[AutoPosting] Body 길이:', bodyData.length, '자');
+    console.log('[AutoPosting] Body 샘플:', bodyData.substring(0, 300));
+
+    // JSON 파싱
+    let body;
+    try {
+      body = typeof bodyData === 'string' ? JSON.parse(bodyData) : bodyData;
+      console.log('[AutoPosting] JSON 파싱 성공');
+    } catch (parseError) {
+      console.log('[AutoPosting] JSON 파싱 실패:', parseError.message);
+      console.log('[AutoPosting] Body 샘플:', bodyData.substring(0, 500));
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid JSON format',
+        details: parseError.message
+      });
+    }
 
     const { 
       searchKeyword,
@@ -36,7 +75,7 @@ module.exports = async function handler(req, res) {
       contents, 
       companyInfo: rawCompanyInfo,
       customPrompt
-    } = req.body;
+    } = body;
 
     // 고정된 목표 글자수: 공백 포함 3000자
     const targetLength = 3000;
@@ -55,7 +94,7 @@ module.exports = async function handler(req, res) {
     console.log('[AutoPosting] companyName:', companyName);
     console.log('[AutoPosting] subKeyword:', subKeyword);
     console.log('[AutoPosting] bodyKeywords:', bodyKeyword1, bodyKeyword2, bodyKeyword3);
-    console.log('[AutoPosting] companyInfo:', companyInfo.substring(0, 100));
+    console.log('[AutoPosting] companyInfo:', companyInfo ? companyInfo.substring(0, 100) : '(없음)');
 
     // contents 검증
     if (!contents) {
@@ -69,7 +108,7 @@ module.exports = async function handler(req, res) {
     let contentsArray = Array.isArray(contents) ? contents : [contents];
     console.log(`[AutoPosting] contents 초기 개수: ${contentsArray.length}`);
 
-    // Make.com Array Aggregator 구조 처리: [{Data: {...}}, {Data: {...}}] 또는 [{data: {...}}, {data: {...}}]
+    // Make.com Array Aggregator 구조 처리
     if (contentsArray.length > 0) {
       if (contentsArray[0].Data) {
         console.log('[AutoPosting] Array Aggregator 형식 감지 (대문자 Data)');
@@ -251,7 +290,7 @@ ${bodyKeyword3 ? `- "${bodyKeyword3}" 키워드 자연스럽게 포함` : ''}
 2. **가독성**:
    - 단락은 2~3문장으로 짧게
    - 소제목(## 또는 ###) 적극 활용
-   - 이모지 적절히 사용 가능
+   - 이모지 사용 불가
 
 3. **진정성**:
    - 구체적인 수치나 예시 포함
@@ -353,7 +392,7 @@ ${combinedContent}
     // 글자 수 계산
     const wordCount = rewrittenContent.length;
     const wordCountNoSpaces = rewrittenContent.replace(/\s/g, '').length;
-    const isLengthValid = wordCount >= targetLength * 0.9; // 공백 포함 기준
+    const isLengthValid = wordCount >= targetLength * 0.9;
 
     console.log(`[AutoPosting] 재작성 완료: ${wordCount}자 (공백 제외: ${wordCountNoSpaces}자)`);
     console.log(`[AutoPosting] 목표: ${targetLength}자 (공백 포함), 달성: ${isLengthValid}`);
