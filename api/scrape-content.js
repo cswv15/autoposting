@@ -32,22 +32,41 @@ module.exports = async function handler(req, res) {
         console.log('[AutoPosting] Browserless 사용');
         
 const browserlessResponse = await axios.post(
-  `https://production-sfo.browserless.io/content?token=${process.env.BROWSERLESS_API_KEY}`,
-          {
-            url: url,
-            waitFor: 2000,
-          },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'Cache-Control': 'no-cache'
-            },
-            timeout: 30000
-          }
-        );
+  `https://production-sfo.browserless.io/scrape?token=${process.env.BROWSERLESS_API_KEY}`,
+  {
+    url: url,
+    elements: [
+      { selector: ".se-main-container" },
+      { selector: "#postViewArea" },
+      { selector: "body" }
+    ],
+    gotoOptions: {
+      waitUntil: "networkidle2",
+      timeout: 30000
+    }
+  },
+  {
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache'
+    },
+    timeout: 30000
+  }
+);
 
-        const html = browserlessResponse.data;
-        const $ = cheerio.load(html);
+// /scrape API는 구조화된 데이터를 반환하므로 처리 방식 변경
+let html = '';
+if (browserlessResponse.data && browserlessResponse.data.data) {
+  // 첫 번째로 찾은 element의 html 사용
+  for (const elementGroup of browserlessResponse.data.data) {
+    if (elementGroup.results && elementGroup.results.length > 0) {
+      html = elementGroup.results[0].html || elementGroup.results[0].text || '';
+      if (html) break;
+    }
+  }
+}
+
+const $ = cheerio.load(html);
 
         // 신규 에디터 (SE3)
         content = $('.se-main-container').text();
