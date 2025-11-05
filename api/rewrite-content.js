@@ -1,4 +1,4 @@
-const OpenAI = require('openai');
+import OpenAI from 'openai';
 
 /**
  * ChatGPT를 이용한 블로그 콘텐츠 재작성
