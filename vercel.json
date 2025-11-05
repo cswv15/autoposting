@@ -3,8 +3,14 @@
   "version": 2,
   "functions": {
     "api/**/*.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "memory": 1024
     }
   },
-  "regions": ["icn1"]
+  "regions": ["icn1"],
+  "api": {
+    "bodyParser": {
+      "sizeLimit": "10mb"
+    }
+  }
 }
