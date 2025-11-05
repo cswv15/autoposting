@@ -23,9 +23,13 @@ module.exports = async function handler(req, res) {
       titleKeyword3 = '',
       contents, 
       targetLength = 1500,
-      companyInfo = '',
+      companyInfo: rawCompanyInfo = '',
       customPrompt = ''
     } = req.body;
+
+    // companyInfo에서 줄바꿈 제거
+    const companyInfo = rawCompanyInfo ? rawCompanyInfo.replace(/[\r\n]+/g, ' ').trim() : '';
+    console.log('[AutoPosting] companyInfo (줄바꿈 제거 후):', companyInfo.substring(0, 100));
 
     // contents 검증
     if (!contents) {
