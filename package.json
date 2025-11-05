@@ -1,5 +1,5 @@
 {
-  "name": "blog-rewriter",
+  "name": "autoposting",
   "version": "1.0.0",
   "description": "네이버 블로그 재작성 시스템",
   "dependencies": {
