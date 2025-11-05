@@ -100,10 +100,12 @@ module.exports = async function handler(req, res) {
         ? `\n\n🎯 **중요**: 이 글은 다음 업체를 홍보하는 글입니다:\n"${companyInfo}"\n\n위 업체의 특성, 위치, 메뉴를 자연스럽게 본문에 포함하여 작성해주세요. 업체와 관련 없는 다른 가게나 일반적인 이야기만 하지 마세요.`
         : '';
       
-      prompt = `당신은 네이버 블로그 상위노출 전문 작가입니다. 아래 ${contentsArray.length}개의 블로그 글을 참고하여, "${searchKeyword}"에 대한 네이버 검색 최적화 블로그 글을 작성해주세요.${companyFocus}
+prompt = `당신은 네이버 블로그 상위노출 전문 작가입니다. 아래 ${contentsArray.length}개의 블로그 글을 참고하여, "${searchKeyword}"에 대한 네이버 검색 최적화 블로그 글을 작성해주세요.${companyFocus}
 
 📌 네이버 블로그 상위노출 최적화 요구사항:
-1. 목표 글자수: ${targetLength}자 이상 (공백 포함, 네이버는 1500자 이상 선호)
+1. 📏 **필수 글자수**: 최소 ${targetLength}자 이상 (공백 포함) 반드시 작성해야 합니다. 짧은 글은 절대 안 됩니다!
+   - 공백 제외 기준으로도 최소 ${Math.floor(targetLength * 0.75)}자 이상 작성
+   - 풍부한 내용으로 충분히 길게 작성
 2. 핵심 키워드 배치:
    - 제목에 반드시 포함: ${titleKeywords || searchKeyword}
    - 첫 문단에 핵심 키워드 포함
@@ -154,7 +156,7 @@ ${combinedContent}
         }
       ],
       temperature: 0.7,
-      max_tokens: 4000
+      max_tokens: 10000
     });
 
     const rewrittenContent = completion.choices[0].message.content;
