@@ -2,7 +2,7 @@
   "name": "autoposting",
   "version": 2,
   "functions": {
-    "api/**/*.js": {
+    "api/rewrite-content.js": {
       "maxDuration": 60,
       "memory": 1024
     }
