@@ -21,47 +21,13 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // Raw body 읽기
-    let bodyData = '';
+    console.log('[AutoPosting] req.body 타입:', typeof req.body);
     
-    if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
-      // 이미 파싱된 객체인 경우 (로컬 테스트 등)
-      bodyData = JSON.stringify(req.body);
-      console.log('[AutoPosting] Body가 이미 객체로 파싱됨');
-    } else if (req.body && typeof req.body === 'string') {
-      // 문자열인 경우
-      bodyData = req.body;
-      console.log('[AutoPosting] Body가 문자열');
-    } else if (req.body && Buffer.isBuffer(req.body)) {
-      // Buffer인 경우
-      bodyData = req.body.toString('utf-8');
-      console.log('[AutoPosting] Body가 Buffer');
-    } else {
-      // Raw stream 읽기
-      console.log('[AutoPosting] Raw body stream 읽기 시작');
-      const chunks = [];
-      for await (const chunk of req) {
-        chunks.push(chunk);
-      }
-      bodyData = Buffer.concat(chunks).toString('utf-8');
-      console.log('[AutoPosting] Stream 읽기 완료');
-    }
-
-    console.log('[AutoPosting] Body 길이:', bodyData.length, '자');
-    console.log('[AutoPosting] Body 샘플:', bodyData.substring(0, 300));
-
-    // JSON 파싱
-    let body;
-    try {
-      body = typeof bodyData === 'string' ? JSON.parse(bodyData) : bodyData;
-      console.log('[AutoPosting] JSON 파싱 성공');
-    } catch (parseError) {
-      console.log('[AutoPosting] JSON 파싱 실패:', parseError.message);
-      console.log('[AutoPosting] Body 샘플:', bodyData.substring(0, 500));
+    if (!req.body) {
+      console.log('[AutoPosting] req.body가 undefined');
       return res.status(400).json({
         success: false,
-        error: 'Invalid JSON format',
-        details: parseError.message
+        error: 'Request body is missing'
       });
     }
 
