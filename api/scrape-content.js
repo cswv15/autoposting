@@ -1,11 +1,7 @@
-import axios from 'axios';
-import * as cheerio from 'cheerio';
+const axios = require('axios');
+const cheerio = require('cheerio');
 
-/**
- * 네이버 블로그 본문 스크래핑
- * Browserless.io 또는 일반 HTTP 요청 사용
- */
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -29,62 +25,30 @@ export default async function handler(req, res) {
     let content = '';
     let method = 'basic';
 
-    // 방법 1: Browserless.io (동적 콘텐츠 처리)
-    if (process.env.BROWSERLESS_API_KEY) {
-      try {
-        method = 'browserless';
-        const browserlessResponse = await axios.post(
-          `https://chrome.browserless.io/content?token=${process.env.BROWSERLESS_API_KEY}`,
-          {
-            url: url,
-            waitFor: 2000,
-          },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'Cache-Control': 'no-cache'
-            },
-            timeout: 30000
-          }
-        );
+    // 일반 HTTP 요청
+    const response = await axios.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
+      timeout: 15000
+    });
 
-        const html = browserlessResponse.data;
-        const $ = cheerio.load(html);
-
-        // 신규 에디터 (SE3)
-        content = $('.se-main-container').text();
-        
-        // 구버전 스마트에디터
-        if (!content || content.length < 50) {
-          content = $('#postViewArea').text();
-        }
-
-      } catch (browserlessError) {
-        console.log('[AutoPosting] Browserless 실패, 일반 방식으로 재시도');
-      }
-    }
-
-    // 방법 2: 일반 HTTP 요청 (Browserless 없을 때 또는 실패시)
+    const $ = cheerio.load(response.data);
+    
+    // 신규 에디터 (SE3)
+    content = $('.se-main-container').text();
+    
+    // 구버전 스마트에디터
     if (!content || content.length < 50) {
-      method = 'basic';
-      const response = await axios.get(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        },
-        timeout: 15000
-      });
-
-      const $ = cheerio.load(response.data);
-      content = $('.se-main-container').text() || $('#postViewArea').text() || '';
+      content = $('#postViewArea').text();
     }
 
     // 텍스트 정제
     content = content
-      .replace(/\s+/g, ' ')      // 연속 공백 제거
-      .replace(/\n+/g, '\n')     // 연속 줄바꿈 제거
+      .replace(/\s+/g, ' ')
+      .replace(/\n+/g, '\n')
       .trim();
 
-    // 최소 글자 수 체크
     if (content.length < 100) {
       return res.status(400).json({
         success: false,
@@ -114,4 +78,4 @@ export default async function handler(req, res) {
       url: req.body.url
     });
   }
-}
+};
