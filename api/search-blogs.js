@@ -24,7 +24,7 @@ module.exports = async function handler(req, res) {
     const response = await axios.get('https://openapi.naver.com/v1/search/blog.json', {
       params: {
         query: keyword,
-        display: 2,
+        display: 3,
         sort: 'sim'
       },
       headers: {
