@@ -92,17 +92,36 @@ module.exports = async function handler(req, res) {
     let prompt;
     let systemMessage;
 
-if (companyName && companyInfo) {
-        // 업체명과 특성이 모두 있을 때
-        systemMessage = `당신은 네이버 블로그 상위노출 전문 작가입니다.
+    if (customPrompt && customPrompt.trim()) {
+      // 사용자가 입력한 커스텀 프롬프트 사용
+      console.log('[AutoPosting] 커스텀 프롬프트 사용');
+      
+      systemMessage = `SEO에 최적화된 고품질 블로그 콘텐츠를 작성하는 전문 작가입니다. 반드시 공백 포함 ${targetLength}자 이상의 긴 글을 작성해야 합니다.`;
+      
+      const companyInfoText = companyInfo ? `\n\n업체 특성: ${companyInfo}` : '';
+      
+      // 변수 치환
+      prompt = customPrompt
+        .replace(/\{searchKeyword\}/g, searchKeyword)
+        .replace(/\{companyName\}/g, companyName)
+        .replace(/\{subKeyword\}/g, subKeyword)
+        .replace(/\{bodyKeywords\}/g, bodyKeywords)
+        .replace(/\{targetLength\}/g, targetLength)
+        .replace(/\{contentsCount\}/g, contentsArray.length)
+        .replace(/\{companyInfo\}/g, companyInfoText)
+        .replace(/\{combinedContent\}/g, combinedContent);
+        
+    } else if (companyName && companyInfo) {
+      // 기본 프롬프트 - 업체명과 특성이 모두 있을 때
+      systemMessage = `당신은 네이버 블로그 상위노출 전문 작가입니다.
 
 필수 요구사항:
 - 공백 포함 ${targetLength}자 이상 작성 필수
 - "${companyName}" 업체만 홍보 (다른 업체 언급 금지)
 - 자연스럽고 진정성 있는 후기 스타일
 - 참고 블로그의 스타일 반영`;
-        
-        prompt = `# 작성 미션
+      
+      prompt = `# 작성 미션
 
 "${companyName}" 업체를 홍보하는 네이버 블로그 글 작성
 목표 길이: 공백 포함 ${targetLength}자 이상
@@ -211,15 +230,15 @@ ${bodyKeyword3 ? `- "${bodyKeyword3}" 자연스럽게 언급` : ''}
 
 지금 바로 공백 포함 ${targetLength}자 이상의 고품질 블로그 글을 작성하세요.`;
 
-      } else {
-        // 업체명이나 특성이 없을 때
-        systemMessage = `당신은 네이버 블로그 상위노출 전문 작가입니다.
+    } else {
+      // 기본 프롬프트 - 업체명이나 특성이 없을 때
+      systemMessage = `당신은 네이버 블로그 상위노출 전문 작가입니다.
 
 필수 요구사항:
 - 공백 포함 ${targetLength}자 이상 작성
 - 자연스럽고 유용한 정보성 콘텐츠`;
-        
-        prompt = `# 작성 미션
+      
+      prompt = `# 작성 미션
 
 "${searchKeyword}"에 대한 정보성 블로그 글 작성
 목표 길이: 공백 포함 ${targetLength}자 이상
@@ -263,7 +282,6 @@ ${combinedContent}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 공백 포함 ${targetLength}자 이상으로 작성하세요.`;
-      }
     }
 
     // OpenAI API 호출
