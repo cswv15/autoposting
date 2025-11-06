@@ -2,9 +2,8 @@
   "name": "autoposting",
   "version": 2,
   "functions": {
-    "api/rewrite-content.js": {
-      "maxDuration": 60,
-      "memory": 1024
+    "api/**/*.js": {
+      "maxDuration": 60
     }
   },
   "regions": ["icn1"]
