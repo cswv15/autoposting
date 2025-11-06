@@ -276,11 +276,15 @@ ${bodyKeyword3 ? `- "${bodyKeyword3}" 키워드 자연스럽게 포함` : ''}
         // 업체명이나 특성이 없을 때
         systemMessage = `당신은 네이버 블로그 상위노출 전문 작가입니다. 공백 포함 ${targetLength}자 이상의 긴 블로그 글을 작성합니다.`;
         
-        prompt = `🎯 **미션**: "${searchKeyword}"에 대한 공백 포함 ${targetLength}자 이상의 블로그 글 작성!
+prompt = `🚨🚨🚨 **긴급 필수**: "${companyName}" 업체를 홍보하는 공백 포함 ${targetLength}자 이상! 짧으면 실패! 🚨🚨🚨
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📏 **필수 글자수**: 공백 포함 ${targetLength}자 이상!
+📏 **절대적 필수 글자수** (이것만은 꼭!):
+- ⚠️ 공백 포함 최소 ${targetLength}자 필수!
+- ⚠️ ${targetLength}자 미만은 절대 불가!
+- ⚠️ 각 섹션을 최대한 길고 상세하게!
+- ⚠️ 구체적인 예시와 경험담으로 글자수 채우기!
 
 🔑 **검색 키워드**: ${searchKeyword}
 ${subKeyword ? `📌 **서브 키워드**: ${subKeyword}` : ''}
