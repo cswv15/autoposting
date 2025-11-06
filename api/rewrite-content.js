@@ -1,10 +1,3 @@
-// Vercel body parser 비활성화
-export const config = {
-  api: {
-    bodyParser: false
-  }
-};
-
 const { OpenAI } = require('openai');
 
 const openai = new OpenAI({
@@ -21,15 +14,7 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    console.log('[AutoPosting] req.body 타입:', typeof req.body);
-    
-    if (!req.body) {
-      console.log('[AutoPosting] req.body가 undefined');
-      return res.status(400).json({
-        success: false,
-        error: 'Request body is missing'
-      });
-    }
+    console.log('[AutoPosting] 받은 req.body:', JSON.stringify(req.body).substring(0, 500));
 
     const { 
       searchKeyword,
@@ -41,7 +26,7 @@ module.exports = async function handler(req, res) {
       contents, 
       companyInfo: rawCompanyInfo,
       customPrompt
-    } = body;
+    } = req.body;
 
     // 고정된 목표 글자수: 공백 포함 3000자
     const targetLength = 3000;
@@ -54,7 +39,7 @@ module.exports = async function handler(req, res) {
     const bodyKeyword3 = (rawBodyKeyword3 === 'null' || rawBodyKeyword3 === null || !rawBodyKeyword3) ? '' : String(rawBodyKeyword3);
 
     // companyInfo에서 줄바꿈 제거
-    const companyInfo = (rawCompanyInfo && rawCompanyInfo !== 'null') ? rawCompanyInfo.replace(/[\r\n]+/g, ' ').trim() : '';
+    const companyInfo = rawCompanyInfo ? rawCompanyInfo.replace(/[\r\n]+/g, ' ').trim() : '';
     
     console.log('[AutoPosting] searchKeyword:', searchKeyword);
     console.log('[AutoPosting] companyName:', companyName);
@@ -74,15 +59,10 @@ module.exports = async function handler(req, res) {
     let contentsArray = Array.isArray(contents) ? contents : [contents];
     console.log(`[AutoPosting] contents 초기 개수: ${contentsArray.length}`);
 
-    // Make.com Array Aggregator 구조 처리
-    if (contentsArray.length > 0) {
-      if (contentsArray[0].Data) {
-        console.log('[AutoPosting] Array Aggregator 형식 감지 (대문자 Data)');
-        contentsArray = contentsArray.map(item => item.Data);
-      } else if (contentsArray[0].data) {
-        console.log('[AutoPosting] Array Aggregator 형식 감지 (소문자 data)');
-        contentsArray = contentsArray.map(item => item.data);
-      }
+    // Make.com Array Aggregator 구조 처리 (대문자 Data만)
+    if (contentsArray.length > 0 && contentsArray[0].Data) {
+      console.log('[AutoPosting] Array Aggregator 형식 감지, Data 추출');
+      contentsArray = contentsArray.map(item => item.Data);
     }
 
     console.log(`[AutoPosting] 최종 contents 개수: ${contentsArray.length}`);
@@ -256,7 +236,7 @@ ${bodyKeyword3 ? `- "${bodyKeyword3}" 키워드 자연스럽게 포함` : ''}
 2. **가독성**:
    - 단락은 2~3문장으로 짧게
    - 소제목(## 또는 ###) 적극 활용
-   - 이모지 사용 불가
+   - 이모지 적절히 사용 가능
 
 3. **진정성**:
    - 구체적인 수치나 예시 포함
@@ -358,7 +338,7 @@ ${combinedContent}
     // 글자 수 계산
     const wordCount = rewrittenContent.length;
     const wordCountNoSpaces = rewrittenContent.replace(/\s/g, '').length;
-    const isLengthValid = wordCount >= targetLength * 0.9;
+    const isLengthValid = wordCount >= targetLength * 0.9; // 공백 포함 기준
 
     console.log(`[AutoPosting] 재작성 완료: ${wordCount}자 (공백 제외: ${wordCountNoSpaces}자)`);
     console.log(`[AutoPosting] 목표: ${targetLength}자 (공백 포함), 달성: ${isLengthValid}`);
@@ -380,7 +360,6 @@ ${combinedContent}
 
   } catch (error) {
     console.error('[AutoPosting] 재작성 오류:', error.message);
-    console.error('[AutoPosting] Stack:', error.stack);
 
     return res.status(500).json({
       success: false,
