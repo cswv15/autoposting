@@ -50,8 +50,8 @@ module.exports = async function handler(req, res) {
               { selector: "body" }
             ],
             gotoOptions: {
-              waitUntil: "load",
-              timeout: 30000
+              waitUntil: "domcontentloaded",
+              timeout: 20000
             }
           },
           {
@@ -59,7 +59,7 @@ module.exports = async function handler(req, res) {
               'Content-Type': 'application/json',
               'Cache-Control': 'no-cache'
             },
-            timeout: 45000
+            timeout: 30000
           }
         );
 
@@ -99,7 +99,7 @@ module.exports = async function handler(req, res) {
         headers: {
           'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'
         },
-        timeout: 15000
+        timeout: 10000
       });
 
       const $ = cheerio.load(response.data);
