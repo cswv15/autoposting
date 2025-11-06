@@ -333,8 +333,8 @@ ${combinedContent}
           content: prompt
         }
       ],
-      temperature: 0.8,
-      max_tokens: 16000
+      temperature: 0.9,
+      max_tokens: 20000
     });
 
     const rewrittenContent = completion.choices[0].message.content;
