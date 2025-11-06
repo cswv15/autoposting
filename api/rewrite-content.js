@@ -92,237 +92,183 @@ module.exports = async function handler(req, res) {
     let prompt;
     let systemMessage;
 
-    if (customPrompt && customPrompt.trim()) {
-      // 사용자가 입력한 커스텀 프롬프트 사용
-      console.log('[AutoPosting] 커스텀 프롬프트 사용');
-      
-      systemMessage = `SEO에 최적화된 고품질 블로그 콘텐츠를 작성하는 전문 작가입니다. 반드시 공백 포함 ${targetLength}자 이상의 긴 글을 작성해야 합니다.`;
-      
-      const companyInfoText = companyInfo ? `\n\n업체 특성: ${companyInfo}` : '';
-      
-      // 변수 치환
-      prompt = customPrompt
-        .replace(/\{searchKeyword\}/g, searchKeyword)
-        .replace(/\{companyName\}/g, companyName)
-        .replace(/\{subKeyword\}/g, subKeyword)
-        .replace(/\{bodyKeywords\}/g, bodyKeywords)
-        .replace(/\{targetLength\}/g, targetLength)
-        .replace(/\{contentsCount\}/g, contentsArray.length)
-        .replace(/\{companyInfo\}/g, companyInfoText)
-        .replace(/\{combinedContent\}/g, combinedContent);
-        
-    } else {
-      // 기본 프롬프트
-      console.log('[AutoPosting] 기본 프롬프트 사용');
-      
-      if (companyName && companyInfo) {
+if (companyName && companyInfo) {
         // 업체명과 특성이 모두 있을 때
-        systemMessage = `당신은 네이버 블로그 상위노출 전문 작가입니다. "${companyName}" 업체를 홍보하는 공백 포함 ${targetLength}자 이상의 긴 블로그 글을 작성합니다. 다른 가게 이야기는 절대 하지 않습니다.`;
+        systemMessage = `당신은 네이버 블로그 상위노출 전문 작가입니다.
+
+필수 요구사항:
+- 공백 포함 ${targetLength}자 이상 작성 필수
+- "${companyName}" 업체만 홍보 (다른 업체 언급 금지)
+- 자연스럽고 진정성 있는 후기 스타일
+- 참고 블로그의 스타일 반영`;
         
-        prompt = `🎯 **핵심 미션**: "${companyName}" 업체를 홍보하는 공백 포함 ${targetLength}자 이상의 블로그 글 작성!
+        prompt = `# 작성 미션
+
+"${companyName}" 업체를 홍보하는 네이버 블로그 글 작성
+목표 길이: 공백 포함 ${targetLength}자 이상
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📏 **필수 글자수**: 공백 포함 ${targetLength}자 이상! (짧으면 안 됨!)
+## 업체 정보
+
+**업체명**: ${companyName}
+**특성**: ${companyInfo}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🏢 **홍보할 업체** (이 업체만 이야기하세요!):
-**업체명**: "${companyName}"
-**업체 특성**: "${companyInfo}"
+## 키워드 전략
+
+**제목 필수 키워드** (모두 포함):
+- "${searchKeyword}"
+- "${companyName}"
+${subKeyword ? `- "${subKeyword}"` : ''}
+
+**본문 자연스럽게 배치**:
+- "${searchKeyword}" (3-5회)
+- "${companyName}" (5-7회)
+${subKeyword ? `- "${subKeyword}" (2-3회)` : ''}
+${bodyKeyword1 ? `- "${bodyKeyword1}" (2-3회)` : ''}
+${bodyKeyword2 ? `- "${bodyKeyword2}" (2-3회)` : ''}
+${bodyKeyword3 ? `- "${bodyKeyword3}" (2-3회)` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔑 **키워드 전략**:
+## 참고 자료 (스타일 참고용)
 
-📌 **제목에 반드시 포함** (이 3가지만!):
-1. "${searchKeyword}" (검색 키워드)
-2. "${companyName}" (업체명)
-${subKeyword ? `3. "${subKeyword}" (서브 키워드)` : ''}
-
-예시 제목: "${searchKeyword} 추천, ${companyName}${subKeyword ? ` ${subKeyword}` : ''} 솔직 후기"
-
-📝 **본문에 자연스럽게 포함** (각 2~3회씩):
-- "${searchKeyword}" (검색 키워드)
-- "${companyName}" (업체명, 5회 이상!)
-${subKeyword ? `- "${subKeyword}" (서브 키워드)` : ''}
-${bodyKeyword1 ? `- "${bodyKeyword1}" (본문 키워드 1)` : ''}
-${bodyKeyword2 ? `- "${bodyKeyword2}" (본문 키워드 2)` : ''}
-${bodyKeyword3 ? `- "${bodyKeyword3}" (본문 키워드 3)` : ''}
-
-⚠️ **중요**: 본문 키워드는 제목에 넣지 말고 본문에만 자연스럽게 배치!
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📚 **"${searchKeyword}" 상위노출 성공 블로그들** (스타일만 참고):
+"${searchKeyword}" 상위노출 성공 블로그들:
 
 ${combinedContent}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-✅ **네이버 블로그 상위노출 작성 규칙**:
+## 글 구조 (${targetLength}자 이상)
 
-🚨 **가장 중요**:
-1. "${companyName}" 업체만 이야기하세요!
-2. 다른 업체/브랜드 이름은 절대 언급 금지!
-3. 가상의 업체를 만들지 마세요!
-4. "${companyName}"를 글 전체에서 5회 이상 자연스럽게 언급!
-5. 실제 경험한 것처럼 생생하고 구체적으로 작성!
+### 제목 (30자 이내)
+예시: "${searchKeyword} 추천, ${companyName}${subKeyword ? ` ${subKeyword}` : ''} 솔직 후기"
 
-📋 **구조** (각 섹션별 최소 글자수):
-
-**제목** (30자 이내):
-- 반드시 포함: "${searchKeyword}", "${companyName}"${subKeyword ? `, "${subKeyword}"` : ''}
-- 본문 키워드는 제목에 넣지 마세요!
-- 예시: "${searchKeyword} 추천 | ${companyName}${subKeyword ? ` ${subKeyword}` : ''} 후기"
-
-**서론** (최소 400자):
-- "${companyName}"을 알게 된 계기
+### 서론 (500자)
+- ${companyName} 알게 된 계기
 - 첫인상과 기대감
-- 위치/접근성 간단히 언급
-- "${searchKeyword}"${subKeyword ? ` 및 "${subKeyword}"` : ''}를 자연스럽게 언급
-- 이용 전 상황이나 니즈 설명
+- 위치/접근성 소개
+- 방문 전 상황
 
-**본론 1: "${companyName}"의 핵심 서비스/제품** (최소 700자):
-- "${companyInfo}"에 나온 주력 서비스/제품 상세 설명
-- 특징, 장점, 차별화 포인트
-${bodyKeyword1 ? `- "${bodyKeyword1}" 키워드 자연스럽게 포함` : ''}
-- 가격/비용 정보 (있다면)
-- 구체적인 이용 경험과 느낀 점
-- 실제 사용 과정이나 절차
-- 예상과 다른 점, 인상 깊었던 점
+### 본론 1: 핵심 서비스/제품 (800자)
+- 주력 상품 상세 소개
+- 특징과 장점
+${bodyKeyword1 ? `- "${bodyKeyword1}" 자연스럽게 언급` : ''}
+- 가격, 구성 등 구체적 정보
+- 이용 경험과 느낀 점
 
-**본론 2: "${companyName}"의 추가 서비스/제품 또는 세부 사항** (최소 600자):
-- "${companyInfo}"의 다른 서비스/제품들
-${bodyKeyword2 ? `- "${bodyKeyword2}" 키워드 자연스럽게 포함` : ''}
-- 각각의 특징과 장단점
-- 조합 추천이나 활용 팁
-- 다른 옵션과의 비교
-- 추가로 이용한 경험
+### 본론 2: 추가 서비스/제품 (700자)
+- 다른 메뉴/서비스 소개
+${bodyKeyword2 ? `- "${bodyKeyword2}" 자연스럽게 언급` : ''}
+- 각각의 특징
+- 조합 추천 및 활용 팁
+- 비교와 선택 가이드
 
-**본론 3: "${companyName}"의 시설/환경/분위기/서비스** (최소 500자):
-- 물리적 공간이 있다면: 인테리어, 시설, 청결도
-- 온라인 서비스라면: UI/UX, 편의성, 속도
-${bodyKeyword3 ? `- "${bodyKeyword3}" 키워드 자연스럽게 포함` : ''}
-- 직원/고객센터의 응대와 전문성
-- 전반적인 분위기나 느낌
-- 어떤 사람에게 적합한지
+### 본론 3: 환경과 분위기 (600자)
+- 공간, 인테리어, 청결도
+${bodyKeyword3 ? `- "${bodyKeyword3}" 자연스럽게 언급` : ''}
+- 직원 응대와 서비스
+- 전체적인 분위기
+- 적합한 고객층
 
-**본론 4: "${companyName}" 이용 팁과 추천** (최소 400자):
-- 위치 및 찾아가는 법 (오프라인이면)
-- 예약 방법이나 이용 절차
-- 주차/교통 정보 (해당되면)
-- 추천 시간대나 타이밍
-- 초보자를 위한 팁
-- "${searchKeyword}"${subKeyword ? ` 중 "${subKeyword}"` : ''}를 언급하며 추천
+### 본론 4: 이용 팁 (500자)
+- 찾아가는 법, 주차 정보
+- 예약 방법, 추천 시간대
+- 초보자 가이드
+- ${searchKeyword} 관련 팁
 
-**결론** (최소 300자):
-- "${companyName}" 총평과 만족도
-- "${searchKeyword}" 관련 마무리 멘트
-- 재이용 의향과 이유
-- 추천 대상 명확히 제시
-- 궁금한 점 있으면 댓글 달라는 유도
-- 다른 분들께도 도움 되길 바라는 마무리
+### 결론 (400자)
+- 종합 평가와 만족도
+- 재방문 의향
+- 추천 대상
+- 마무리 및 댓글 유도
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-💡 **네이버 SEO 최적화 팁**:
+## 작성 가이드
 
-1. **키워드 배치**:
-   - 첫 문단에 핵심 키워드 포함
-   - 소제목에도 키워드 활용
-   - 자연스럽게 3~5회 반복
+**필수 준수**:
+- ${companyName}만 언급 (참고 블로그 업체명 절대 사용 금지)
+- 실제 경험한 듯 구체적이고 생생하게
+- 각 섹션 최소 글자수 지키기
+- 소제목 활용으로 가독성 확보
 
-2. **가독성**:
-   - 단락은 2~3문장으로 짧게
-   - 소제목(## 또는 ###) 적극 활용
-   - 이모지 사용 불가
+**품질 향상**:
+- 구체적 수치와 예시 포함
+- 개인적 경험담과 감정 표현
+- 솔직한 장단점 언급
+- 자연스러운 대화체
 
-3. **진정성**:
-   - 구체적인 수치나 예시 포함
-   - 개인적인 경험담과 감정 표현
-   - 솔직한 장단점 언급
-
-4. **참여 유도**:
-   - 질문 형식 사용
-   - "여러분은~", "함께~" 등 친근한 어투
-   - 댓글 유도 문구 자연스럽게
-
-5. **글자수 채우기 팁**:
-   - 이용 과정을 순서대로 상세히
-   - 함께 간 사람과의 대화나 반응
-   - 작은 디테일들 놓치지 않고 묘사
-   - Before/After 비교
-   - 다른 곳과의 차이점
+**SEO 최적화**:
+- 첫 문단에 핵심 키워드
+- 소제목에 키워드 활용
+- 적절한 문단 나누기
+- 이모지 사용 금지
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⚠️ **최종 체크리스트**:
-☑️ 공백 포함 ${targetLength}자 이상
-☑️ 제목: "${searchKeyword}" + "${companyName}"${subKeyword ? ` + "${subKeyword}"` : ''} 포함
-☑️ "${companyName}" 5회 이상 언급
-☑️ 본문 키워드 자연스럽게 분산
-☑️ "${companyInfo}"의 정보만 사용
-☑️ 다른 업체 이름 절대 언급 안 함
-☑️ 상위노출 블로그들의 스타일 반영
-☑️ 구체적이고 생생한 경험담
-☑️ 소제목 활용으로 가독성 확보
-
-🔥 지금 바로 "${companyName}"에 대한 ${targetLength}자 이상의 고품질 블로그 글을 작성하세요!
-
-업종에 관계없이 위 가이드를 따라 자연스럽고 진정성 있는 후기를 작성해주세요!`;
+지금 바로 공백 포함 ${targetLength}자 이상의 고품질 블로그 글을 작성하세요.`;
 
       } else {
         // 업체명이나 특성이 없을 때
-        systemMessage = `당신은 네이버 블로그 상위노출 전문 작가입니다. 공백 포함 ${targetLength}자 이상의 긴 블로그 글을 작성합니다.`;
+        systemMessage = `당신은 네이버 블로그 상위노출 전문 작가입니다.
+
+필수 요구사항:
+- 공백 포함 ${targetLength}자 이상 작성
+- 자연스럽고 유용한 정보성 콘텐츠`;
         
-prompt = `🚨🚨🚨 **긴급 필수**: "${companyName}" 업체를 홍보하는 공백 포함 ${targetLength}자 이상! 짧으면 실패! 🚨🚨🚨
+        prompt = `# 작성 미션
+
+"${searchKeyword}"에 대한 정보성 블로그 글 작성
+목표 길이: 공백 포함 ${targetLength}자 이상
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📏 **절대적 필수 글자수** (이것만은 꼭!):
-- ⚠️ 공백 포함 최소 ${targetLength}자 필수!
-- ⚠️ ${targetLength}자 미만은 절대 불가!
-- ⚠️ 각 섹션을 최대한 길고 상세하게!
-- ⚠️ 구체적인 예시와 경험담으로 글자수 채우기!
+## 키워드
 
-🔑 **검색 키워드**: ${searchKeyword}
-${subKeyword ? `📌 **서브 키워드**: ${subKeyword}` : ''}
-${bodyKeywords ? `📝 **본문 키워드**: ${bodyKeywords}` : ''}
+**검색 키워드**: ${searchKeyword}
+${subKeyword ? `**서브 키워드**: ${subKeyword}` : ''}
+${bodyKeywords ? `**본문 키워드**: ${bodyKeywords}` : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📚 **상위노출 성공 블로그들** (스타일 참고):
+## 참고 자료
+
+"${searchKeyword}" 상위노출 성공 블로그들:
 
 ${combinedContent}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-✅ **작성 방법**:
+## 글 구조
 
 **제목**: "${searchKeyword}"${subKeyword ? ` + "${subKeyword}"` : ''} 포함
 
-**본문**: 
-- 위 블로그들의 스타일 분석
-- 핵심 정보를 종합하여 새로운 글 작성
-- 각 섹션을 충분히 길고 상세하게
-- 본문 키워드 자연스럽게 분산 배치
+**본문**:
+- 서론 (500자): 주제 소개
+- 본론 1 (800자): 핵심 정보
+- 본론 2 (700자): 추가 정보
+- 본론 3 (600자): 상세 가이드
+- 본론 4 (500자): 실용 팁
+- 결론 (400자): 종합 정리
 
-📋 **구조** (각 섹션 최소 글자수):
-- 서론 (400자)
-- 본론 섹션 1 (700자)
-- 본론 섹션 2 (600자)
-- 본론 섹션 3 (500자)
-- 본론 섹션 4 (400자)
-- 결론 (300자)
+**작성 방법**:
+- 참고 블로그 스타일 반영
+- 핵심 정보 종합
+- 구체적이고 실용적으로
+- 자연스러운 키워드 배치
 
-🔥 공백 포함 ${targetLength}자 이상 필수! 지금 작성하세요!`;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+공백 포함 ${targetLength}자 이상으로 작성하세요.`;
       }
     }
 
     // OpenAI API 호출
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
