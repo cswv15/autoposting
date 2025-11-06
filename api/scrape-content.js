@@ -127,7 +127,7 @@ module.exports = async function handler(req, res) {
       .replace(/[\u{1F900}-\u{1F9FF}]/gu, '') // 보충 기호
       .replace(/[\u{1FA00}-\u{1FA6F}]/gu, '') // 체스 기호
       .trim()
-      .substring(0, 2000); // 최대 2000자로 제한
+      .substring(0, 3000); // 최대 3000자로 제한
 
     console.log(`[AutoPosting] 원본: ${fullLength}자 → 이모지 제거 후: ${content.length}자`);
 
